@@ -58,12 +58,36 @@ public class Visitor extends JavaParserBaseVisitor<Type> {
     return null;
   }
 
+  @Override
+  public Type visitClassOrInterfaceType(JavaParser.ClassOrInterfaceTypeContext ctx) {
+    String name = ctx.getChild(0).getText();
+    if (name.equals("String")){
+      return Type.String;
+    }else if(name.equals("Boolean")){
+      return Type.Boolean;
+    }else{
+      return visitChildren(ctx);
+    }
+  }
 
   @Override
-  public Type visitPrimitiveType(JavaParser.PrimitiveTypeContext ctx) {
-    String typeName = ctx.getText();
-    Type type = Type.getType(typeName);
-    return type;
+  public Type visitBoolean(JavaParser.BooleanContext ctx) {
+    return Type.Boolean;
+  }
+
+  @Override
+  public Type visitChar(JavaParser.CharContext ctx) {
+    return Type.Char;
+  }
+
+  @Override
+  public Type visitInt(JavaParser.IntContext ctx) {
+    return Type.Int;
+  }
+
+  @Override
+  public Type visitDouble(JavaParser.DoubleContext ctx) {
+    return Type.Double;
   }
 
   @Override
@@ -110,12 +134,7 @@ public class Visitor extends JavaParserBaseVisitor<Type> {
   public Type visitFlLiteral(JavaParser.FlLiteralContext ctx) {
     String value = ctx.getText();
     String id = value.substring(value.length()-1);
-
-    if(id.equals("f") || id.equals("F")){
-      return Type.Float;
-    } else {
-      return Type.Double;
-    }
+    return Type.Double;
   }
 
   @Override

@@ -16,19 +16,15 @@ public class Main {
     //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
     //viewr.open();
 
-    //リスナー
-    //TypeCheckListener listener = new TypeCheckListener();
-    //ParseTreeWalker walker = new ParseTreeWalker();
-    //walker.walk(listener, tree);
-    //Double result = listener.getResult();
-
     //ビジター
     Visitor visitor = new Visitor();
     visitor.fileName = args[0];
     visitor.visit(tree);
 
     int ec = visitor.errorCnt;
-    if(ec == 1){
+    if(ec == 0) {
+      System.out.println("no type error");
+    }else if(ec == 1){
       System.out.println(ec+" error");
     }else if(ec > 1){
       System.out.println(ec+" errors");

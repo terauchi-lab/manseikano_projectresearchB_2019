@@ -584,14 +584,14 @@ typeType
     ;
 
 primitiveType
-    : BOOLEAN
-    | CHAR
-    | BYTE
-    | SHORT
-    | INT
-    | LONG
-    | FLOAT
-    | DOUBLE
+    : BOOLEAN                 #boolean
+    | CHAR                    #char
+    | BYTE                    #byte
+    | SHORT                   #short
+    | INT                     #int
+    | LONG                    #long
+    | FLOAT                   #float
+    | DOUBLE                  #double
     ;
 
 typeArguments
