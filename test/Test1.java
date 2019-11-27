@@ -1,6 +1,7 @@
 import java.util.*;
 import java.io.*;
 
+//基本型の変数初期化, 宣言, 代入の型チェック
 public class Test1 {
   public static void main(String[] args){
     //変数宣言
@@ -11,12 +12,16 @@ public class Test1 {
     //初期化
     int b = 3, c = 1;
 
-    float f = 3.04f;
+    double d = 3.14;
+    double e,f;
+    e = f = 3.01;
+    e = 3.04;
 
-    char ch = 'k';
+    char ch = 'c';
 
-    double d,e;
-    d = e = 3.01;
-    e = 3.04d;
+    String st = "string";
+
+    boolean bool1 = true;
+    Boolean bool2 = false;
   }
 }
