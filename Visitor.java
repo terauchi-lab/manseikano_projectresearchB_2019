@@ -1,12 +1,14 @@
 import java.util.*;
 import static java.lang.System.*;
+import org.antlr.v4.runtime.*;
 
 public class Visitor extends JavaParserBaseVisitor<Type> {
 
   //型環境
-  public static HashMap<String, Type> typeContext = new HashMap<String, Type>();
+  public HashMap<String, Type> typeContext = new HashMap<String, Type>();
+  public int errorCnt = 0;
 
-  public static int errorCnt = 0;
+  public String fileName;
 
   @Override
   public Type visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
@@ -17,8 +19,12 @@ public class Visitor extends JavaParserBaseVisitor<Type> {
       String[] varArray = names[i].split("=");
       String name = varArray[0];
 
+      //変数名がかぶっていないかチェック
       if(typeContext.containsKey(name)){
-        out.println("Variable "+name+" is already defined");
+        Token startPos = ctx.getStart();
+        int line = startPos.getLine();
+        int chara = startPos.getCharPositionInLine()+1;
+        out.println(fileName+" at line "+line+", charater "+chara+", error: Variable "+name+" is already defined");
         errorCnt++;
       }else{
         typeContext.put(name, type);
@@ -33,17 +39,18 @@ public class Visitor extends JavaParserBaseVisitor<Type> {
   @Override
   public Type visitVariableDeclarator(JavaParser.VariableDeclaratorContext ctx) {
     //変数の初期化
-    out.println("hello");
     if(ctx.getChildCount() >= 3){
       String variable = ctx.getChild(0).getText();
-      out.println(variable);
       if(typeContext.containsKey(variable)){
         Type leftT = typeContext.get(variable);
         Type rightT = visit(ctx.getChild(2));
 
         //型が一致しているかチェック
         if(leftT != rightT){
-          out.println(rightT+" cannot be converted to "+leftT);
+          Token startPos = ctx.getStart();
+          int line = startPos.getLine();
+          int chara = startPos.getCharPositionInLine()+1;
+          out.println(fileName+" at line "+line+", charater "+chara+", error: "+rightT+" cannot be converted to "+leftT);
           errorCnt++;
         }
       }
@@ -64,15 +71,17 @@ public class Visitor extends JavaParserBaseVisitor<Type> {
     Type leftT = null;
 
     if(ctx.getChildCount() >= 3){
-      //代入の型検査
+      //代入
       if(ctx.bop.getText().equals("=")){
         leftT = visit(ctx.expression(0));
         Type rightT = visit(ctx.expression(1));
 
-        out.println(leftT.name()+" = "+rightT.name());
-
+        //型が一致しているかチェック
         if(leftT != rightT){
-          out.println(rightT+" cannot be converted to "+leftT);
+          Token startPos = ctx.getStart();
+          int line = startPos.getLine();
+          int chara = startPos.getCharPositionInLine()+1;
+          out.println(fileName+" at line "+line+", charater "+chara+", error: "+rightT+" cannot be converted to "+leftT);
           errorCnt++;
         }
       }
