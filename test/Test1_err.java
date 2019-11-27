@@ -1,22 +1,24 @@
 import java.util.*;
 import java.io.*;
 
+//基本型の変数初期化, 宣言, 代入の型チェック
 public class Test1_err {
   public static void main(String[] args){
-    //変数宣言
     int a;
-
-    //代入
-    a = 100.0;
-
-    //重複した変数宣言
+    a = 100;
     double a = 100.0;
 
-    //初期化
-    int b = 3, c = true;
+    int b = 3, c = 1.4;
 
-    float f = 3.04;
+    double d = true;
+    double e,f;
+    e = f = "st";
 
-    char ch = "k";
+    char ch = "c";
+
+    String st = 's';
+
+    Boolean bool = 100;
+    boolean bool = 10;
   }
 }
