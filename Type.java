@@ -1,14 +1,10 @@
 import static java.lang.System.*;
 public enum Type {
   Int,
+  Double,
+  Char,
   String,
   Boolean,
-  Char,
-  Byte,
-  Long,
-  Float,
-  Double,
-  Ok,
   Null,
   ;
 

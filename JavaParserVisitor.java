@@ -683,11 +683,61 @@ public interface JavaParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitTypeType(JavaParser.TypeTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link JavaParser#primitiveType}.
+	 * Visit a parse tree produced by the {@code boolean}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitPrimitiveType(JavaParser.PrimitiveTypeContext ctx);
+	T visitBoolean(JavaParser.BooleanContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code char}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitChar(JavaParser.CharContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code byte}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitByte(JavaParser.ByteContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code short}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitShort(JavaParser.ShortContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code int}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitInt(JavaParser.IntContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code long}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitLong(JavaParser.LongContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code float}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFloat(JavaParser.FloatContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code double}
+	 * labeled alternative in {@link JavaParser#primitiveType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitDouble(JavaParser.DoubleContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link JavaParser#typeArguments}.
 	 * @param ctx the parse tree
