@@ -7,7 +7,7 @@ import org.antlr.v4.gui.TreeViewer;
 
 public class Main {
   public static void main(String[] args) throws Exception {
-    JavaLexer lexer = new JavaLexer(CharStreams.fromFileName("Test.java"));
+    JavaLexer lexer = new JavaLexer(CharStreams.fromFileName(args[0]));
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     JavaParser parser = new JavaParser(tokens);
     ParseTree tree = parser.compilationUnit();
@@ -24,11 +24,19 @@ public class Main {
 
     //ビジター
     Visitor visitor = new Visitor();
+    visitor.fileName = args[0];
     visitor.visit(tree);
 
+    int ec = visitor.errorCnt;
+    if(ec == 1){
+      System.out.println(ec+" error");
+    }else if(ec > 1){
+      System.out.println(ec+" errors");
+    }
+
     //型環境デバッグ
-    //for (String key : Visitor.typeContext.keySet()) {
-    //  System.out.println(key + " => " + Visitor.typeContext.get(key));
+    //for (String key : visitor.typeContext.keySet()) {
+    //  System.out.println(key + " => " + visitor.typeContext.get(key));
     //}
 
 
