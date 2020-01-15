@@ -1,6 +1,6 @@
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
-//import static java.lang.System.*;
+import static java.lang.System.*;
 //import static java.lang.Math.*;
 import java.util.Arrays;
 import org.antlr.v4.gui.TreeViewer;
@@ -13,24 +13,17 @@ public class Main {
     ParseTree tree = parser.compilationUnit();
 
     //GUI表示
-    //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
-    //viewr.open();
+    TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
+    viewr.open();
 
     //ビジター
-    Visitor visitor = new Visitor();
-    visitor.fileName = args[0];
-    visitor.visit(tree);
-
-    int ec = visitor.errorCnt;
-    if(ec == 0) {
-      System.out.println("no type error");
-    }else if(ec == 1){
-      System.out.println(ec+" error");
-    }else if(ec > 1){
-      System.out.println(ec+" errors");
-    }
+    //Visitor visitor = new Visitor();
+    //visitor.fileName = args[0];
+    //visitor.visit(tree);
 
     //型環境デバッグ
+    //out.println();
+    //out.println("type context");
     //for (String key : visitor.typeContext.keySet()) {
     //  System.out.println(key + " => " + visitor.typeContext.get(key));
     //}
