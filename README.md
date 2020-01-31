@@ -3,8 +3,9 @@
   - `antlr4 JavaLexer.g4 JavaParser.g4 -visitor -no-listener`
 - コンパイル
   - `javac Main.java`
-- 実行(コマンドライン引数で指定)
-  - `java Main test/Test2.java`
+- 実行
+  - コマンドライン引数でプログラムを指定
+  - `java Main test/Test1.java`
 
 # 入力として受け取れるサンプルコード
 ```java
@@ -32,8 +33,9 @@ class Test1 {
 - JavaParser.g4
   - Parserの定義ファイル
 - Visitor.java
+  - 型検査器
   - Antlr4が生成した構文木をvisitパターンで型付けする
 - Main.java
-  - コマンドライン引数で与えられたプログラムに対して構文解析と型付けをする
-- Test
+  - メインプログラム
+- test/*.java
   - テストファイル

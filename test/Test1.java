@@ -9,7 +9,7 @@ class A {
 
 }
 
-class Test2 {
+class Test1 {
   void main(){
     ptr(p1) a = new A(new A(null)[p3])[p2];
     a.x = new A(null)[p4];
