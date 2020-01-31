@@ -1,15 +1,17 @@
 class A {
-  void ma(){}
+  ptr(_) x;
+
+  []
+  A(ptr(py) y){
+    this.x = y;
+  }
+  [p, py; {p -> {c:A, x:ptr(py)}}]
+
 }
 
-class B {
-  void ma(){}
-  void mb(){}
-}
-
-class Test1 {
+class Test2 {
   void main(){
-    /*ptr(p1)*/ a = new B();
-    a.mb();
+    ptr(p1) a = new A(new A(null)[p3])[p2];
+    a.x = new A(null)[p4];
   }
 }

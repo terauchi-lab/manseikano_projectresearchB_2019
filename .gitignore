@@ -4,3 +4,5 @@
 *.tokens
 JavaLexer.java
 JavaParser.java
+JavaParserBaseVisitor.java
+JavaParserVisitor.java
