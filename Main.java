@@ -17,9 +17,9 @@ public class Main {
     viewr.open();
 
     //ビジター
-    //Visitor visitor = new Visitor();
-    //visitor.fileName = args[0];
-    //visitor.visit(tree);
+    Visitor visitor = new Visitor();
+    visitor.fileName = args[0];
+    visitor.visit(tree);
 
     //型環境デバッグ
     //out.println();
@@ -27,7 +27,6 @@ public class Main {
     //for (String key : visitor.typeContext.keySet()) {
     //  System.out.println(key + " => " + visitor.typeContext.get(key));
     //}
-
 
     //System.out.println(result);
   }
