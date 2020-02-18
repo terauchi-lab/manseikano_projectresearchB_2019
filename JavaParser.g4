@@ -142,9 +142,10 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    : typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
+    : condition* typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
       (THROWS qualifiedNameList)?
       methodBody
+      condition*
     ;
 
 methodBody
@@ -166,7 +167,7 @@ genericConstructorDeclaration
     ;
 
 constructorDeclaration
-    : IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block
+    : condition IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block condition
     ;
 
 fieldDeclaration
@@ -580,7 +581,7 @@ typeList
     ;
 
 typeType
-    : annotation? (classOrInterfaceType | primitiveType) ('[' ']')*
+    : annotation? (classOrInterfaceType | primitiveType | refType) ('[' ']')*
     ;
 
 primitiveType
@@ -592,6 +593,26 @@ primitiveType
     | LONG                    #long
     | FLOAT                   #float
     | DOUBLE                  #double
+    ;
+
+refType
+    : PTR '(' IDENTIFIER ')'
+    ;
+
+condition
+    : '[' delta* (';')? constraints* ']'
+    ;
+
+delta
+    : IDENTIFIER (',' IDENTIFIER)*
+    ;
+
+constraints
+    : constraint ('+' constraint)*
+    ;
+
+constraint
+    : '{' IDENTIFIER '->' '{' IDENTIFIER ':' IDENTIFIER ',' IDENTIFIER ':' typeType (',' IDENTIFIER ':' typeType )* '}' '}'
     ;
 
 typeArguments
