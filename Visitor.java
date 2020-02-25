@@ -9,12 +9,6 @@ class Class {
   public Constructor cons;
   //Method
   public HashMap<String,Method> methodMap;
-
-  Class(){
-    fmap = new HashMap<String,String>();
-    cons = new Constructor();
-    methodMap = new HashMap<String, Method>();
-  }
 }
 
 class Constructor {
@@ -61,7 +55,7 @@ public class Visitor extends JavaParserBaseVisitor<String> {
   //引数の型を一時保管
   public Stack<HashMap<String, String>> paramStack = new Stack<HashMap<String, String>>();
   //コンストレイント一時保管
-  public Stack<HashMap<String,Constraint>> condStack = new Stack<HashMap<String,Constraint>>();
+  public Stack<HashMap<String,Constraint>> conditionStack = new Stack<HashMap<String,Constraint>>();
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
@@ -81,10 +75,15 @@ public class Visitor extends JavaParserBaseVisitor<String> {
 
   @Override
   public String visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
-    String cName = st.peek();
     String type = ctx.getChild(0).getText();
     String id = ctx.getChild(1).getText();
+    String cName = st.peek();
     Class c = ct.get(cName);
+
+    //フィールドがなければ生成
+    if(c.fmap == null){
+      c.fmap = new HashMap<String,String>();
+    }
 
     if(c.fmap.containsKey(id)){
       System.err.println("the variable "+id+" has already been defined.");
@@ -98,29 +97,35 @@ public class Visitor extends JavaParserBaseVisitor<String> {
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
     String cName = st.peek();
-    Constructor cons = ct.get(cName).cons;
+    Class c = ct.get(cName);
+
+    //コンストラクタがなければ生成
+    if(c.cons == null){
+      c.cons = new Constructor();
+    }
 
     var preCondition = ctx.condition().get(0).constraints();
     var postCondition = ctx.condition().get(1).constraints();
 
+    //事前条件があれば生成
     if(preCondition != null){
-      cons.pre = new HashMap<String,Constraint>();
-      condStack.push(cons.pre);
+      c.cons.pre = new HashMap<String,Constraint>();
+      conditionStack.push(c.cons.pre);
       visit(ctx.condition().get(0));
-      condStack.pop();
+      conditionStack.pop();
     }
 
+    //事後条件があれば生成
     if(postCondition != null){
-      cons.post = new HashMap<String,Constraint>();
-      condStack.push(cons.post);
+      c.cons.post = new HashMap<String,Constraint>();
+      conditionStack.push(c.cons.post);
       visit(ctx.condition().get(1));
-      condStack.pop();
+      conditionStack.pop();
     }
 
-    paramStack.push(cons.pmap);
+    paramStack.push(c.cons.pmap);
     visit(ctx.formalParameters());
-    var pmap = paramStack.pop();
-    cons.pmap = pmap;
+    paramStack.pop();
     return null;
   }
 
@@ -135,22 +140,22 @@ public class Visitor extends JavaParserBaseVisitor<String> {
 
   @Override
   public String visitConstraint(JavaParser.ConstraintContext ctx) {
-    HashMap<String,Constraint> condition = condStack.peek();
+    HashMap<String,Constraint> condition = conditionStack.peek();
 
     //位置
     String location = ctx.IDENTIFIER().get(0).getText();
 
-    //コンストレイント
     Constraint c = new Constraint();
     c.className = st.peek();
 
-    //各変数の型
+    //各変数の型をマップに追加
     for(int i=0; i<ctx.param().size(); i++){
       String id = ctx.param().get(i).IDENTIFIER().getText();
       String type = ctx.param().get(i).typeType().getText();
       c.cmap.put(id, type);
     }
 
+    //コンストレイント更新
     condition.put(location, c);
     return visitChildren(ctx);
   }
@@ -159,11 +164,18 @@ public class Visitor extends JavaParserBaseVisitor<String> {
   public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
     String type = ctx.typeTypeOrVoid().getText();
     String id = ctx.IDENTIFIER().getText();
-    String cName = st.peek();
 
+    String cName = st.peek();
     Class c = ct.get(cName);
+
+    //メソッドがなければ生成
+    if(c.methodMap == null){
+      c.methodMap = new HashMap<String, Method>();
+    }
+
     Method m = new Method();
     m.returnType = type;
+
     c.methodMap.put(id, m);
 
     var preCondition = ctx.condition(0);
@@ -171,119 +183,23 @@ public class Visitor extends JavaParserBaseVisitor<String> {
 
     if(preCondition != null){
       m.pre = new HashMap<String,Constraint>();
-      condStack.push(m.pre);
+      conditionStack.push(m.pre);
       visit(ctx.condition().get(0));
-      condStack.pop();
+      conditionStack.pop();
     }
 
     if(postCondition != null){
       m.post = new HashMap<String,Constraint>();
-      condStack.push(m.post);
+      conditionStack.push(m.post);
       visit(ctx.condition().get(1));
-      condStack.pop();
+      conditionStack.pop();
     }
 
     paramStack.push(m.pmap);
     visit(ctx.formalParameters());
-    var param = paramStack.pop();
-    m.pmap = param;
+    paramStack.pop();
 
-    return visitChildren(ctx);
+    return null;
   }
-
-  //@Override
-  //public Type visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
-  //  Type type = visit(ctx.typeType());
-  //  String[] names = ctx.variableDeclarators().getText().split(",");
-
-  //  for(int i=0; i < names.length; i++){
-  //    String[] varArray = names[i].split("=");
-  //    String name = varArray[0];
-
-  //    //変数名がかぶっていないかチェック
-  //    if(typeContext.containsKey(name)){
-  //      Token startPos = ctx.getStart();
-  //      int line = startPos.getLine();
-  //      int chara = startPos.getCharPositionInLine()+1;
-  //      out.println(fileName+" at line "+line+", charater "+chara+", error: Variable "+name+" is already defined");
-  //      errorCnt++;
-  //    }else{
-  //      typeContext.put(name, type);
-  //    }
-  //  }
-
-  //  visitChildren(ctx);
-
-  //  return type;
-  //}
-
-  //@Override
-  //public Type visitVariableDeclarator(JavaParser.VariableDeclaratorContext ctx) {
-  //  //変数の初期化
-  //  if(ctx.getChildCount() >= 3){
-  //    String variable = ctx.getChild(0).getText();
-  //    if(typeContext.containsKey(variable)){
-  //      Type leftT = typeContext.get(variable);
-  //      Type rightT = visit(ctx.getChild(2));
-
-  //      //型が一致しているかチェック
-  //      if(leftT != rightT){
-  //        Token startPos = ctx.getStart();
-  //        int line = startPos.getLine();
-  //        int chara = startPos.getCharPositionInLine()+1;
-  //        out.println(fileName+" at line "+line+", charater "+chara+", error: "+rightT+" cannot be converted to "+leftT);
-  //        errorCnt++;
-  //      }
-  //    }
-  //  }
-  //  return null;
-  //}
-
-  //@Override
-  //public Type visitClassOrInterfaceType(JavaParser.ClassOrInterfaceTypeContext ctx) {
-  //  String name = ctx.getChild(0).getText();
-  //  if (name.equals("String")){
-  //    return Type.String;
-  //  }else if(name.equals("Boolean")){
-  //    return Type.Boolean;
-  //  }else{
-  //    return visitChildren(ctx);
-  //  }
-  //}
-
-  //@Override
-  //public Type visitExpression(JavaParser.ExpressionContext ctx) {
-  //  Type leftT = null;
-
-  //  if(ctx.getChildCount() >= 3){
-  //    //代入
-  //    if(ctx.bop.getText().equals("=")){
-  //      leftT = visit(ctx.expression(0));
-  //      Type rightT = visit(ctx.expression(1));
-
-  //      //型が一致しているかチェック
-  //      if(leftT != rightT){
-  //        Token startPos = ctx.getStart();
-  //        int line = startPos.getLine();
-  //        int chara = startPos.getCharPositionInLine()+1;
-  //        out.println(fileName+" at line "+line+", charater "+chara+", error: "+rightT+" cannot be converted to "+leftT);
-  //        errorCnt++;
-  //      }
-  //    }
-  //    return leftT;
-  //  }
-
-  //  return visitChildren(ctx);
-  //}
-
-  //@Override
-  //public Type visitPrimaryIdentifier(JavaParser.PrimaryIdentifierContext ctx) {
-  //  String id = ctx.getText();
-  //  if (typeContext.containsKey(id)){
-  //    return typeContext.get(id);
-  //  }else{
-  //    return null;
-  //  }
-  //}
 
 }
