@@ -2,16 +2,192 @@ import java.util.*;
 import static java.lang.System.*;
 import org.antlr.v4.runtime.*;
 
-public class Visitor extends JavaParserBaseVisitor<String> {
+class Class {
+  //Field->Type
+  public HashMap<String,String> fmap;
+  //Constructor
+  public Constructor cons;
+  //Method
+  public HashMap<String,Method> methodMap;
 
-  //型環境
-  public HashMap<String, Type> typeContext = new HashMap<String, Type>();
-  public int errorCnt = 0;
-  public String fileName;
+  Class(){
+    fmap = new HashMap<String,String>();
+    cons = new Constructor();
+    methodMap = new HashMap<String, Method>();
+  }
+}
+
+class Constructor {
+  //Param->Type
+  public HashMap<String,String> pmap = new HashMap<String,String>();
+
+  //PreCondition
+  //Location -> Precondition
+  public HashMap<String,Constraint> pre;
+
+  //PosCcondition
+  //Location -> Precondition
+  public HashMap<String,Constraint> post;
+}
+
+class Method {
+  //Param->Type
+  public HashMap<String,String> pmap = new HashMap<String,String>();
+
+  //PreCondition
+  //Location -> Precondition
+  public HashMap<String,Constraint> pre;
+
+  //PosCcondition
+  //Location -> Precondition
+  public HashMap<String,Constraint> post;
+
+  //ReturnType
+  public String returnType;
+}
+
+class Constraint {
+  //Class name
+  public String className;
+  //constraint field-type
+  public HashMap<String,String> cmap = new HashMap<String,String>();
+}
+
+public class Visitor extends JavaParserBaseVisitor<String> {
+  //クラステーブル
+  public HashMap<String, Class> ct = new HashMap<String, Class>();
+  //クラス名一時保管
+  public Stack<String> st = new Stack<String>();
+  //引数の型を一時保管
+  public Stack<HashMap<String, String>> paramStack = new Stack<HashMap<String, String>>();
+  //コンストレイント一時保管
+  public Stack<HashMap<String,Constraint>> condStack = new Stack<HashMap<String,Constraint>>();
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
-    out.println(ctx.getChild(1).getText());
+    String cName = ctx.IDENTIFIER().getText();
+
+    if(ct.containsKey(cName)){
+      System.err.println("the class "+cName+" has already been defined.");
+      return null;
+    };
+
+    ct.put(cName, new Class());
+    st.push(cName);
+    visitChildren(ctx);
+    st.pop();
+    return null;
+  }
+
+  @Override
+  public String visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+    String cName = st.peek();
+    String type = ctx.getChild(0).getText();
+    String id = ctx.getChild(1).getText();
+    Class c = ct.get(cName);
+
+    if(c.fmap.containsKey(id)){
+      System.err.println("the variable "+id+" has already been defined.");
+      return null;
+    };
+
+    c.fmap.put(id, type);
+    return visitChildren(ctx);
+  }
+
+  @Override
+  public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
+    String cName = st.peek();
+    Constructor cons = ct.get(cName).cons;
+
+    var preCondition = ctx.condition().get(0).constraints();
+    var postCondition = ctx.condition().get(1).constraints();
+
+    if(preCondition != null){
+      cons.pre = new HashMap<String,Constraint>();
+      condStack.push(cons.pre);
+      visit(ctx.condition().get(0));
+      condStack.pop();
+    }
+
+    if(postCondition != null){
+      cons.post = new HashMap<String,Constraint>();
+      condStack.push(cons.post);
+      visit(ctx.condition().get(1));
+      condStack.pop();
+    }
+
+    paramStack.push(cons.pmap);
+    visit(ctx.formalParameters());
+    var pmap = paramStack.pop();
+    cons.pmap = pmap;
+    return null;
+  }
+
+  @Override
+  public String visitFormalParameter(JavaParser.FormalParameterContext ctx) {
+    var pmap = paramStack.peek();
+    String type = ctx.getChild(0).getText();
+    String id = ctx.getChild(1).getText();
+    pmap.put(id, type);
+    return null;
+  }
+
+  @Override
+  public String visitConstraint(JavaParser.ConstraintContext ctx) {
+    HashMap<String,Constraint> condition = condStack.peek();
+
+    //位置
+    String location = ctx.IDENTIFIER().get(0).getText();
+
+    //コンストレイント
+    Constraint c = new Constraint();
+    c.className = st.peek();
+
+    //各変数の型
+    for(int i=0; i<ctx.param().size(); i++){
+      String id = ctx.param().get(i).IDENTIFIER().getText();
+      String type = ctx.param().get(i).typeType().getText();
+      c.cmap.put(id, type);
+    }
+
+    condition.put(location, c);
+    return visitChildren(ctx);
+  }
+
+  @Override
+  public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
+    String type = ctx.typeTypeOrVoid().getText();
+    String id = ctx.IDENTIFIER().getText();
+    String cName = st.peek();
+
+    Class c = ct.get(cName);
+    Method m = new Method();
+    m.returnType = type;
+    c.methodMap.put(id, m);
+
+    var preCondition = ctx.condition(0);
+    var postCondition = ctx.condition(1);
+
+    if(preCondition != null){
+      m.pre = new HashMap<String,Constraint>();
+      condStack.push(m.pre);
+      visit(ctx.condition().get(0));
+      condStack.pop();
+    }
+
+    if(postCondition != null){
+      m.post = new HashMap<String,Constraint>();
+      condStack.push(m.post);
+      visit(ctx.condition().get(1));
+      condStack.pop();
+    }
+
+    paramStack.push(m.pmap);
+    visit(ctx.formalParameters());
+    var param = paramStack.pop();
+    m.pmap = param;
+
     return visitChildren(ctx);
   }
 

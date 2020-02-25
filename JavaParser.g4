@@ -612,7 +612,11 @@ constraints
     ;
 
 constraint
-    : '{' IDENTIFIER '->' '{' IDENTIFIER ':' IDENTIFIER ',' IDENTIFIER ':' typeType (',' IDENTIFIER ':' typeType )* '}' '}'
+    : '{' IDENTIFIER '->' '{' IDENTIFIER ':' IDENTIFIER ',' param (',' param )* '}' '}'
+    ;
+
+param
+    : IDENTIFIER ':' typeType
     ;
 
 typeArguments

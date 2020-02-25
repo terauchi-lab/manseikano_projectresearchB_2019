@@ -6,3 +6,6 @@ main: Main.java
 
 clean:
 	rm *.class
+
+t1:
+	java Main test/Test1.java
