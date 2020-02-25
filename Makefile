@@ -7,5 +7,5 @@ main: Main.java
 clean:
 	rm *.class
 
-test1:
+t1:
 	java Main test/Test1.java
