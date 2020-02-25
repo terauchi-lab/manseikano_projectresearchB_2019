@@ -2,51 +2,6 @@ import java.util.*;
 import static java.lang.System.*;
 import org.antlr.v4.runtime.*;
 
-class Class {
-  //Field->Type
-  public HashMap<String,String> fmap;
-  //Constructor
-  public Constructor cons;
-  //Method
-  public HashMap<String,Method> methodMap;
-}
-
-class Constructor {
-  //Param->Type
-  public HashMap<String,String> pmap = new HashMap<String,String>();
-
-  //PreCondition
-  //Location -> Precondition
-  public HashMap<String,Constraint> pre;
-
-  //PosCcondition
-  //Location -> Precondition
-  public HashMap<String,Constraint> post;
-}
-
-class Method {
-  //Param->Type
-  public HashMap<String,String> pmap = new HashMap<String,String>();
-
-  //PreCondition
-  //Location -> Precondition
-  public HashMap<String,Constraint> pre;
-
-  //PosCcondition
-  //Location -> Precondition
-  public HashMap<String,Constraint> post;
-
-  //ReturnType
-  public String returnType;
-}
-
-class Constraint {
-  //Class name
-  public String className;
-  //constraint field-type
-  public HashMap<String,String> cmap = new HashMap<String,String>();
-}
-
 public class MakeClassTable extends JavaParserBaseVisitor<String> {
   //クラステーブル
   public HashMap<String, Class> ct = new HashMap<String, Class>();

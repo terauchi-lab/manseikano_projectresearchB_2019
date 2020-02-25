@@ -1,7 +1,8 @@
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import static java.lang.System.*;
-//import static java.lang.Math.*;
+import static java.lang.Math.*;
+import java.util.*;
 import java.util.Arrays;
 import org.antlr.v4.gui.TreeViewer;
 
@@ -17,24 +18,26 @@ public class Main {
     //viewr.open();
 
     //ビジター
-    Visitor visitor = new Visitor();
-    visitor.visit(tree);
+    MakeClassTable makeClassTable = new MakeClassTable();
+    makeClassTable.visit(tree);
+
+    //クラステーブルを保管
+    Data.ct = makeClassTable.ct;
 
     //デバッグ
-    printClassTable(visitor);
+    printClassTable(Data.ct);
 
-    //System.out.println(result);
   }
 
   //クラステーブルを出力
-  public static void printClassTable(Visitor visitor){
+  public static void printClassTable(HashMap<String, Class> ct){
     out.println();
     out.println("Class Table");
-    for (String key : visitor.ct.keySet()) {
+    for (String key : ct.keySet()) {
       out.println("class: "+key);
-      System.out.println("  "+key + " => " + visitor.ct.get(key));
+      System.out.println("  "+key + " => " + ct.get(key));
 
-      Class c = visitor.ct.get(key);
+      Class c = ct.get(key);
 
       out.println("Field");
       if(c.fmap != null){
@@ -44,7 +47,7 @@ public class Main {
       }
 
       out.println("Constructor");
-      Constructor cons = visitor.ct.get(key).cons;
+      Constructor cons = ct.get(key).cons;
       out.println("  Params");
       if(cons != null){
         for (String id : cons.pmap.keySet()) {
