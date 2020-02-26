@@ -523,13 +523,13 @@ lambdaBody
     ;
 
 primary
-    : '(' expression ')'                                                            #primaryParen
-    | THIS                                                                          #primaryThis
-    | SUPER                                                                         #primarySuper
-    | literal                                                                       #primaryLiteral
-    | IDENTIFIER                                                                    #primaryIdentifier
-    | typeTypeOrVoid '.' CLASS                                                      #primaryClass
-    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)   #primaryWild
+    : '(' expression ')'
+    | THIS
+    | SUPER
+    | literal
+    | IDENTIFIER
+    | typeTypeOrVoid '.' CLASS
+    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)
     ;
 
 classType
@@ -585,14 +585,14 @@ typeType
     ;
 
 primitiveType
-    : BOOLEAN                 #boolean
-    | CHAR                    #char
-    | BYTE                    #byte
-    | SHORT                   #short
-    | INT                     #int
-    | LONG                    #long
-    | FLOAT                   #float
-    | DOUBLE                  #double
+    : BOOLEAN
+    | CHAR
+    | BYTE
+    | SHORT
+    | INT
+    | LONG
+    | FLOAT
+    | DOUBLE
     ;
 
 refType
