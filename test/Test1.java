@@ -1,5 +1,6 @@
 class A {
   ptr(_) x;
+  int tmp = 3;
 
   []
   A(ptr(py) y){
@@ -9,7 +10,7 @@ class A {
 
 }
 
-class Test1 {
+class Main {
   void main(){
     ptr(p1) a = new A(new A(null)[p3])[p2];
     a.x = new A(null)[p4];

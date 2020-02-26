@@ -7,8 +7,8 @@ class Method {
   //Location -> Precondition
   public HashMap<String,Constraint> pre;
 
-  //PosCcondition
-  //Location -> Precondition
+  //PostCcondition
+  //Location -> Postcondition
   public HashMap<String,Constraint> post;
 
   //ReturnType
