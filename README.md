@@ -1,5 +1,11 @@
-# 環境構築
-- 定義ファイルを元に構文解析器とVisitorを生成
+# 環境
+- Java
+  - 10.0.1
+- antlr
+  - 4.7.2
+
+# 動作確認
+- 構文解析器と型検査器を生成
   - `antlr4 JavaLexer.g4 JavaParser.g4 -visitor -no-listener`
 - コンパイル
   - `javac Main.java`
@@ -19,7 +25,7 @@ class A {
   [p, py; {p -> {c:A, x:ptr(py)}}]
 }
 
-class Test1 {
+class Main {
   void main(){
     ptr(p1) a = new A(new A(null)[p3])[p2];
     a.x = new A(null)[p4];
@@ -32,9 +38,10 @@ class Test1 {
   - Lexerの定義ファイル
 - JavaParser.g4
   - Parserの定義ファイル
-- Visitor.java
+- MakeClassTable.java
+  - クラステーブルを生成
+- TypeCheck.java
   - 型検査器
-  - Antlr4が生成した構文木をvisitパターンで型付けする
 - Main.java
   - メインプログラム
 - test/*.java
