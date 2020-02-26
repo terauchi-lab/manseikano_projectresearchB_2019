@@ -538,7 +538,11 @@ classType
 
 creator
     : nonWildcardTypeArguments createdName classCreatorRest
-    | createdName (arrayCreatorRest | classCreatorRest)
+    | createdName (arrayCreatorRest | classCreatorRest) paramLocation
+    ;
+
+paramLocation
+    : '[' IDENTIFIER? (',' IDENTIFIER)* ']'
     ;
 
 createdName
