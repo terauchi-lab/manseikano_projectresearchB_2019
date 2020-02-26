@@ -14,15 +14,19 @@ public class Main {
     ParseTree tree = parser.compilationUnit();
 
     //GUI表示
-    //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
-    //viewr.open();
+    TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
+    viewr.open();
 
-    //ビジター
+    //クラステーブルを生成するvisitor
     MakeClassTable makeClassTable = new MakeClassTable();
     makeClassTable.visit(tree);
 
     //クラステーブルを保管
     Data.ct = makeClassTable.ct;
+
+    //型付けを行うvisiotr
+    //TypeCheck typeCheck = new TypeCheck();
+    //typeCheck.visit(tree);
 
     //デバッグ
     printClassTable(Data.ct);

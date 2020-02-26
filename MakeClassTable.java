@@ -40,6 +40,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
       c.fmap = new HashMap<String,String>();
     }
 
+    //既にフィールドの変数が定義されていたらエラー
     if(c.fmap.containsKey(id)){
       System.err.println("the variable "+id+" has already been defined.");
       return null;
@@ -57,6 +58,12 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     //コンストラクタがなければ生成
     if(c.cons == null){
       c.cons = new Constructor();
+    }
+
+    //コンストラクタの名前が違っていたらエラー
+    String id = ctx.IDENTIFIER().getText();
+    if(!cName.equals(id)){
+      System.err.println("invalid constructor name.");
     }
 
     var preCondition = ctx.condition().get(0).constraints();
