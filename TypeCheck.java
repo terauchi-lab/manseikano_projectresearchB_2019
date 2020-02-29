@@ -3,8 +3,12 @@ import static java.lang.System.*;
 import org.antlr.v4.runtime.*;
 
 public class TypeCheck extends JavaParserBaseVisitor<String> {
-  //クラス名一時保管
+  //クラス名保管
   public Stack<String> st = new Stack<String>();
+  //コンストレイント保管
+  public Stack<HashMap<String,Constraint>> cStack = new Stack<HashMap<String,Constraint>>();
+  //newした回数を記録
+  public int ptCnt = 0;
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
@@ -65,7 +69,64 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     //newのとき
     if(ctx.NEW() != null){
-      String val = ctx.IDENTIFIER().getText();
+      var creator = ctx.creator();
+      var locations = creator.paramLocation().IDENTIFIER();
+      var arguments = creator.classCreatorRest().arguments().expressionList().expression();
+      int max = arguments.size();
+      //newした回数を記録
+      ptCnt++;
+
+      String cName = st.peek();
+      Class c = Data.ct.get(cName);
+
+      //コンストラクタの引数->型
+      var pmap = Data.ct.get(c).cons.pmap;
+
+      //コンストレイント生成
+      Constraint newConst = new Constraint();
+      newConst.className = cName;
+
+      int cnt=0;
+      for (String key : pmap.keySet()) {
+        String pType = pmap.get(key);
+        String type = visit(arguments.get(cnt));
+
+        //コンストラクタの型と仮引数の型が一致していなかったらエラー
+        if(!pType.equals(type) && (pType.contains("ptr") && !type.equals("NULL")) ){
+          err.println("constructors cannot be applied to given types.");
+        }
+
+        //コンストレントに型追加
+        if(pType.contains("ptr")&&type.equals("NULL")){
+          newConst.cmap.put(key, "NULL");
+        }else if(pType.contains("ptr")&&type.contains("ptr")){
+          //引数の型を外から与えられた位置へのポインタとする。
+          String loc = locations.get(cnt).getText();
+          newConst.cmap.put(key, "ptr("+loc+")");
+        }else{
+          newConst.cmap.put(key, pType);
+        }
+        cnt++;
+      }
+
+      //コンストラクタと引数の数が一致していなかったら
+      if(cnt != max-1){
+        err.println("constructors cannot be applied to given types.");
+      }
+
+      if(cStack.empty()){
+        //事後条件を生成
+        HashMap<String,Constraint> condition = new HashMap<String,Constraint>();
+        condition.put("pt"+ptCnt, newConst);
+        cStack.push(condition);
+      }else{
+        //事後条件を更新
+        var condition = cStack.pop();
+        condition.put("pt"+ptCnt, newConst);
+        cStack.push(condition);
+      }
+
+      return "ptr(pt"+ptCnt+")";
     }
 
     //メソッド呼び出しのとき
