@@ -4,11 +4,11 @@ import org.antlr.v4.runtime.*;
 
 public class TypeCheck extends JavaParserBaseVisitor<String> {
   //クラス名保管
-  public Stack<String> st = new Stack<String>();
+  public Deque<String> st = new ArrayDeque<String>();
   //型環境
   public Deque<HashMap<String,String>> env = new ArrayDeque<HashMap<String,String>>();
   //コンストレイント
-  public Stack<HashMap<String,Constraint>> cStack = new Stack<HashMap<String,Constraint>>();
+  public Deque<HashMap<String,Constraint>> cStack = new ArrayDeque<HashMap<String,Constraint>>();
   //newした回数を記録
   public int ptCnt = 0;
 
@@ -33,8 +33,8 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     var currentEnv = env.peekFirst();
 
     //変数宣言or初期化時に型環境に追加
-    for(int i=0; i<max; i++){
-      String id = decList.get(i).variableDeclaratorId().getText();
+    for(var dec : decList){
+      String id = dec.variableDeclaratorId().getText();
       currentEnv.put(id, type);
     }
 
@@ -46,9 +46,9 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
 
-    st.push(cName);
+    st.addFirst(cName);
     visitChildren(ctx);
-    st.pop();
+    st.removeFirst();
     return null;
   }
 
@@ -108,7 +108,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       //newした回数を記録
       ptCnt++;
 
-      String cName = st.peek();
+      String cName = st.peekFirst();
       Class c = Data.ct.get(cName);
 
       //コンストラクタの引数->型
@@ -146,16 +146,16 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
         err.println("constructors cannot be applied to given types.");
       }
 
-      if(cStack.empty()){
+      if(cStack.isEmpty()){
         //事後条件を生成
         HashMap<String,Constraint> condition = new HashMap<String,Constraint>();
         condition.put("pt"+ptCnt, newConst);
-        cStack.push(condition);
+        cStack.addFirst(condition);
       }else{
         //事後条件を更新
         var condition = cStack.pop();
         condition.put("pt"+ptCnt, newConst);
-        cStack.push(condition);
+        cStack.addFirst(condition);
       }
 
       return "ptr(pt"+ptCnt+")";
