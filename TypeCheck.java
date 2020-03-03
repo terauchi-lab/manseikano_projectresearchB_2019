@@ -8,22 +8,41 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
   //型環境
   public Deque<HashMap<String,String>> env = new ArrayDeque<HashMap<String,String>>();
   //コンストレイント
-  public Deque<HashMap<String,Constraint>> cStack = new ArrayDeque<HashMap<String,Constraint>>();
+  public Deque<HashMap<String,Constraint>> constr = new ArrayDeque<HashMap<String,Constraint>>();
   //newした回数を記録
   public int ptCnt = 0;
 
   @Override
   public String visitBlock(JavaParser.BlockContext ctx) {
-    //ブロックに入ったら型環境を追加
+    //ブロックに入ったら型環境とコンストレイントを追加
     var newEnv = new HashMap<String,String>();
+    var newConstr = new HashMap<String,Constraint>();
     env.addFirst(newEnv);
+    constr.addFirst(newConstr);
 
     visitChildren(ctx);
-    printTypeEnv(ctx);
 
-    //ブロックを抜けたら型環境を削除
+    //ブロックを抜けたら型環境とコンストレイントを削除
     env.removeFirst();
+    constr.removeFirst();
     return null;
+  }
+
+  @Override public String visitBlockStatement(JavaParser.BlockStatementContext ctx) {
+    String cName = st.peekFirst();
+
+    if(!cName.equals("Main")){
+      return visitChildren(ctx);
+    }else{
+      visitChildren(ctx);
+
+      //mainの1文ごとに型環境とコンストレイントを出力
+      int line = ctx.getStart().getLine();
+      out.println("Line "+line+":");
+      printTypeEnv();
+      printConstraint();
+      return null;
+    }
   }
 
   @Override public String visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
@@ -94,9 +113,29 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     }
 
     //フィールド参照のとき
-    //TODO
     if(ctx.bop != null && ctx.bop.getText().equals(".")){
-      String val = ctx.IDENTIFIER().getText();
+      String instance = ctx.getChild(0).getText();
+      String field = ctx.IDENTIFIER().getText();
+
+      var currentEnv = env.peekFirst();
+      String type = currentEnv.get(instance);
+
+      if(type == null){
+        err.println(instance+" is not declared");
+      }
+
+      int left = type.indexOf("(")+1;
+      int right = type.indexOf(")");
+      String location = type.substring(left, right);
+
+      var currentConstr = constr.peekFirst().get(location);
+
+      if(currentConstr == null){
+        err.println(instance+"is not instanciated");
+      }
+
+      String fieldType = currentConstr.cmap.get(field);
+      return fieldType;
     }
 
     //newのとき
@@ -108,15 +147,10 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       //newした回数を記録
       ptCnt++;
 
-      String cName = st.peekFirst();
-      Class c = Data.ct.get(cName);
+      String cName = creator.createdName().getText();
 
       //コンストラクタの引数->型
-      var pmap = Data.ct.get(c).cons.pmap;
-
-      //コンストレイント生成
-      Constraint newConst = new Constraint();
-      newConst.className = cName;
+      var pmap = Data.ct.get(cName).cons.pmap;
 
       int cnt=0;
       for (String key : pmap.keySet()) {
@@ -127,37 +161,35 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
         if(!pType.equals(type) && (pType.contains("ptr") && !type.equals("NULL")) ){
           err.println("constructors cannot be applied to given types.");
         }
-
-        //コンストレントに型追加
-        if(pType.contains("ptr")&&type.equals("NULL")){
-          newConst.cmap.put(key, "NULL");
-        }else if(pType.contains("ptr")&&type.contains("ptr")){
-          //引数の型を外から与えられた位置へのポインタとする。
-          String loc = locations.get(cnt).getText();
-          newConst.cmap.put(key, "ptr("+loc+")");
-        }else{
-          newConst.cmap.put(key, pType);
-        }
         cnt++;
       }
-
-      //コンストラクタと引数の数が一致していなかったら
-      if(cnt != max-1){
+      //コンストラクタと引数の数が一致していなかったらエラー
+      if(cnt != max){
         err.println("constructors cannot be applied to given types.");
       }
 
-      if(cStack.isEmpty()){
-        //事後条件を生成
-        HashMap<String,Constraint> condition = new HashMap<String,Constraint>();
-        condition.put("pt"+ptCnt, newConst);
-        cStack.addFirst(condition);
-      }else{
-        //事後条件を更新
-        var condition = cStack.pop();
-        condition.put("pt"+ptCnt, newConst);
-        cStack.addFirst(condition);
+      //コンストレイント生成
+      Constraint newConstr = new Constraint();
+      newConstr.className = cName;
+
+      //コンストラクタの事後条件のコンストレイント
+      var postCmap = Data.ct.get(cName).cons.post;
+
+      //コンストレイント更新
+      //TODO
+      //フィールドが引数よりも多いとうまくいかない
+      cnt=0;
+      for (String loc : postCmap.keySet()) {
+        for (String key : postCmap.get(loc).cmap.keySet()) {
+          String type = visit(arguments.get(cnt));
+          newConstr.cmap.put(key, type);
+          cnt++;
+        }
       }
 
+      //コンストレイントをスタックに追加
+      var currentConstr = constr.peekFirst();
+      currentConstr.put("pt"+ptCnt, newConstr);
       return "ptr(pt"+ptCnt+")";
     }
 
@@ -192,10 +224,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
   }
 
   //型環境を出力
-  void printTypeEnv(ParserRuleContext ctx){
-    int line = ctx.getStart().getLine();
-    out.println("Line "+line+":");
-
+  void printTypeEnv(){
     var it = env.iterator();
     while(it.hasNext()){
       var currentEnv = it.next();
@@ -205,4 +234,21 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     }
     out.println();
   }
+
+  //コンストレイントを出力
+  void printConstraint(){
+    var it = constr.iterator();
+    while(it.hasNext()){
+      var currentConstr = it.next();
+      for (String loc : currentConstr.keySet()) {
+        var c = currentConstr.get(loc);
+        out.println(loc+" => ");
+        out.println("  c:"+c.className);
+        for (String val : c.cmap.keySet()) {
+          System.out.println("  "+val + " => " + c.cmap.get(val));
+        }
+      }
+    }
+  }
+
 }
