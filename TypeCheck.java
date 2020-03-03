@@ -5,10 +5,42 @@ import org.antlr.v4.runtime.*;
 public class TypeCheck extends JavaParserBaseVisitor<String> {
   //クラス名保管
   public Stack<String> st = new Stack<String>();
-  //コンストレイント保管
+  //型環境
+  public Deque<HashMap<String,String>> env = new ArrayDeque<HashMap<String,String>>();
+  //コンストレイント
   public Stack<HashMap<String,Constraint>> cStack = new Stack<HashMap<String,Constraint>>();
   //newした回数を記録
   public int ptCnt = 0;
+
+  @Override
+  public String visitBlock(JavaParser.BlockContext ctx) {
+    //ブロックに入ったら型環境を追加
+    var newEnv = new HashMap<String,String>();
+    env.addFirst(newEnv);
+
+    visitChildren(ctx);
+    printTypeEnv(ctx);
+
+    //ブロックを抜けたら型環境を削除
+    env.removeFirst();
+    return null;
+  }
+
+  @Override public String visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
+    var decList = ctx.variableDeclarators().variableDeclarator();
+    int max = decList.size();
+    String type = ctx.typeType().getText();
+    var currentEnv = env.peekFirst();
+
+    //変数宣言or初期化時に型環境に追加
+    for(int i=0; i<max; i++){
+      String id = decList.get(i).variableDeclaratorId().getText();
+      currentEnv.put(id, type);
+    }
+
+    return visitChildren(ctx);
+  }
+
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
@@ -63,7 +95,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     //フィールド参照のとき
     //TODO
-    if(ctx.bop.getText().equals(".")){
+    if(ctx.bop != null && ctx.bop.getText().equals(".")){
       String val = ctx.IDENTIFIER().getText();
     }
 
@@ -159,4 +191,18 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     return "bool";
   }
 
+  //型環境を出力
+  void printTypeEnv(ParserRuleContext ctx){
+    int line = ctx.getStart().getLine();
+    out.println("Line "+line+":");
+
+    var it = env.iterator();
+    while(it.hasNext()){
+      var currentEnv = it.next();
+      for (String key : currentEnv.keySet()) {
+        out.print(key+":"+currentEnv.get(key)+", ");
+      }
+    }
+    out.println();
+  }
 }
