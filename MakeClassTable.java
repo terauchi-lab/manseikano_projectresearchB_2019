@@ -30,8 +30,8 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
   @Override
   public String visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
-    String type = ctx.getChild(0).getText();
-    String id = ctx.getChild(1).getText();
+    String type = ctx.typeType().getText();
+    var decList = ctx.variableDeclarators().variableDeclarator();
     String cName = st.peek();
     Class c = ct.get(cName);
 
@@ -40,13 +40,17 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
       c.fmap = new HashMap<String,String>();
     }
 
-    //既にフィールドの変数が定義されていたらエラー
-    if(c.fmap.containsKey(id)){
-      System.err.println("the variable "+id+" has already been defined.");
-      return null;
-    };
+    for(var dec : decList){
+      String id = dec.variableDeclaratorId().getText();
 
-    c.fmap.put(id, type);
+      //既にフィールドの変数が定義されていたらエラー
+      if(c.fmap.containsKey(id)){
+        System.err.println("the variable "+id+" has already been defined.");
+        return null;
+      };
+      c.fmap.put(id, type);
+    }
+
     return visitChildren(ctx);
   }
 
