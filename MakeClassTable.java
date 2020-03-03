@@ -6,11 +6,11 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   //クラステーブル
   public HashMap<String, Class> ct = new HashMap<String, Class>();
   //クラス名一時保管
-  public Stack<String> st = new Stack<String>();
+  public Deque<String> st = new ArrayDeque<String>();
   //引数の型を一時保管
-  public Stack<HashMap<String, String>> paramStack = new Stack<HashMap<String, String>>();
+  public Deque<HashMap<String, String>> paramStack = new ArrayDeque<HashMap<String, String>>();
   //コンストレイント一時保管
-  public Stack<HashMap<String,Constraint>> conditionStack = new Stack<HashMap<String,Constraint>>();
+  public Deque<HashMap<String,Constraint>> conditionStack = new ArrayDeque<HashMap<String,Constraint>>();
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
@@ -22,9 +22,9 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     };
 
     ct.put(cName, new Class());
-    st.push(cName);
+    st.addFirst(cName);
     visitChildren(ctx);
-    st.pop();
+    st.removeFirst();
     return null;
   }
 
@@ -32,7 +32,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   public String visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
     String type = ctx.typeType().getText();
     var decList = ctx.variableDeclarators().variableDeclarator();
-    String cName = st.peek();
+    String cName = st.peekFirst();
     Class c = ct.get(cName);
 
     //フィールドがなければ生成
@@ -56,7 +56,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
-    String cName = st.peek();
+    String cName = st.peekFirst();
     Class c = ct.get(cName);
 
     //コンストラクタがなければ生成
@@ -76,28 +76,28 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     //事前条件があれば生成
     if(preCondition != null){
       c.cons.pre = new HashMap<String,Constraint>();
-      conditionStack.push(c.cons.pre);
+      conditionStack.addFirst(c.cons.pre);
       visit(ctx.condition().get(0));
-      conditionStack.pop();
+      conditionStack.removeFirst();
     }
 
     //事後条件があれば生成
     if(postCondition != null){
       c.cons.post = new HashMap<String,Constraint>();
-      conditionStack.push(c.cons.post);
+      conditionStack.addFirst(c.cons.post);
       visit(ctx.condition().get(1));
-      conditionStack.pop();
+      conditionStack.removeFirst();
     }
 
-    paramStack.push(c.cons.pmap);
+    paramStack.addFirst(c.cons.pmap);
     visit(ctx.formalParameters());
-    paramStack.pop();
+    paramStack.removeFirst();
     return null;
   }
 
   @Override
   public String visitFormalParameter(JavaParser.FormalParameterContext ctx) {
-    var pmap = paramStack.peek();
+    var pmap = paramStack.peekFirst();
     String type = ctx.getChild(0).getText();
     String id = ctx.getChild(1).getText();
     pmap.put(id, type);
@@ -106,13 +106,13 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
   @Override
   public String visitConstraint(JavaParser.ConstraintContext ctx) {
-    HashMap<String,Constraint> condition = conditionStack.peek();
+    HashMap<String,Constraint> condition = conditionStack.peekFirst();
 
     //位置
     String location = ctx.IDENTIFIER().get(0).getText();
 
     Constraint c = new Constraint();
-    c.className = st.peek();
+    c.className = st.peekFirst();
 
     //各変数の型をマップに追加
     for(int i=0; i<ctx.param().size(); i++){
@@ -131,7 +131,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     String type = ctx.typeTypeOrVoid().getText();
     String id = ctx.IDENTIFIER().getText();
 
-    String cName = st.peek();
+    String cName = st.peekFirst();
     Class c = ct.get(cName);
 
     //メソッドがなければ生成
@@ -149,21 +149,21 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
     if(preCondition != null){
       m.pre = new HashMap<String,Constraint>();
-      conditionStack.push(m.pre);
+      conditionStack.addFirst(m.pre);
       visit(ctx.condition().get(0));
-      conditionStack.pop();
+      conditionStack.removeFirst();
     }
 
     if(postCondition != null){
       m.post = new HashMap<String,Constraint>();
-      conditionStack.push(m.post);
+      conditionStack.addFirst(m.post);
       visit(ctx.condition().get(1));
-      conditionStack.pop();
+      conditionStack.removeFirst();
     }
 
-    paramStack.push(m.pmap);
+    paramStack.addFirst(m.pmap);
     visit(ctx.formalParameters());
-    paramStack.pop();
+    paramStack.removeFirst();
 
     return null;
   }
