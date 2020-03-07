@@ -5,6 +5,8 @@
   - 4.7.2
 
 # 動作確認
+- antlrをダウンロードしパスを通す
+  - https://www.antlr.org/
 - 構文解析器と型検査器を生成
   - `antlr4 JavaLexer.g4 JavaParser.g4 -visitor -no-listener`
 - コンパイル
@@ -20,15 +22,16 @@ class A {
 
   []
   A(ptr(py) y){
-    this.x = y;
+    x = y;
   }
   [p, py; {p -> {c:A, x:ptr(py)}}]
+
 }
 
 class Main {
   void main(){
-    ptr(p1) a = new A(new A(null)[p3])[p2];
-    a.x = new A(null)[p4];
+    ptr(pt1) a = new A(new A(null)[x1])[pt2];
+    a.x = new A(null)[x2];
   }
 }
 ```
