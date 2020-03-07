@@ -98,9 +98,9 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     String exprType = visitChildren(ctx);
 
     //関数の返り値の型が正しいか
-    if(!returnType.equals(exprType)){
-        err.println("invalid return type");
-    }
+    //if(!returnType.equals(exprType)){
+    //    err.println("invalid return type");
+    //}
     return null;
   }
 
@@ -109,7 +109,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     //基本型の値のとき
     if(ctx.primary() != null){
-      visit(ctx.primary());
+      return visit(ctx.primary());
     }
 
     //フィールド参照のとき
@@ -148,7 +148,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       //コンストレイント追加
       constr.peekFirst().put("pt"+currentNewCnt, null);
 
-      //コンストラクタが要求する型環境
+      //コxストラクタが要求する型環境
       String cName = creator.createdName().getText();
       var pmap = Data.ct.get(cName).cons.pmap;
 
@@ -209,10 +209,41 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     //メソッド呼び出しのとき
     if(ctx.methodCall() != null){
-      String m = ctx.methodCall().getText();
     }
 
-    //フィールドへの代入のとき
+    //代入のとき
+    if(ctx.bop != null && ctx.bop.getText().equals("=")){
+      var right = ctx.expression(0);
+      var left = ctx.expression(1);
+
+      String rType = visit(right);
+      String lType = visit(left);
+
+      if(isSubtyped(lType, rType)){
+        //フィールドへの代入のとき
+        if(right.bop != null && right.bop.getText().equals(".")){
+
+          String instance = right.getChild(0).getText();
+          var currentEnv = env.peekFirst();
+          String type = currentEnv.get(instance);
+
+          int l = rType.indexOf("(")+1;
+          int r = rType.indexOf(")");
+          String location = type.substring(l, r);
+          var currentConstr = constr.peekFirst().get(location);
+
+          //コンストレイントのフィールドを更新
+          String field = right.IDENTIFIER().getText();
+          currentConstr.cmap.replace(field, lType);
+        }
+      }else{
+        //左右の型が異なるためエラー
+        err.println(lType+" can not be converted to "+ rType);
+        return lType;
+      }
+
+      return lType;
+    }
 
     return visitChildren(ctx);
   }
@@ -235,6 +266,34 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
   @Override public String visitBoolLiteral(JavaParser.BoolLiteralContext ctx) {
     return "bool";
+  }
+
+  //部分型かどうか(t<:ti)
+  boolean isSubtyped(String t, String ti){
+    String cName = st.peekFirst();
+    if(!cName.equals("Main")){ return true; }
+
+    if(t.equals(ti)){ //基本型が一致
+      return true;
+    }else if(ti.contains("ptr") && t.equals("NULL")){ //NULL<:ptr
+      return true;
+    }else if(ti.contains("ptr") && t.contains("ptr")){ //ptr(t)<:ptr(ti)
+      String locT = t.substring(t.indexOf("(")+1, t.indexOf(")"));
+      String locTi = ti.substring(ti.indexOf("(")+1, ti.indexOf(")"));
+      var ct = constr.peekFirst().get(locT);
+      var cti = constr.peekFirst().get(locTi);
+
+      //コンストレイントの広さをチェック
+      for(String id : cti.cmap.keySet()){
+        String l = ct.cmap.get(id);
+        String r = cti.cmap.get(id);
+        if(ct.cmap.get(id) == null && !isSubtyped(l, r)){ //深さ
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
   }
 
   //型環境を出力
