@@ -14,8 +14,8 @@ public class Main {
     ParseTree tree = parser.compilationUnit();
 
     //GUI表示
-    TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
-    viewr.open();
+    //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
+    //viewr.open();
 
     //クラステーブルを生成するvisitor
     MakeClassTable makeClassTable = new MakeClassTable();
@@ -24,19 +24,19 @@ public class Main {
     //クラステーブルを保管
     Data.ct = makeClassTable.ct;
 
-    //型付けを行うvisiotr
-    //TypeCheck typeCheck = new TypeCheck();
-    //typeCheck.visit(tree);
-
     //デバッグ
     printClassTable(Data.ct);
+    out.println("**Debug**");
 
+    //型付けを行うvisiotr
+    TypeCheck typeCheck = new TypeCheck();
+    typeCheck.visit(tree);
   }
 
   //クラステーブルを出力
   public static void printClassTable(HashMap<String, Class> ct){
     out.println();
-    out.println("Class Table");
+    out.println("**Class Table**");
     for (String key : ct.keySet()) {
       out.println("class: "+key);
       System.out.println("  "+key + " => " + ct.get(key));
