@@ -10,7 +10,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
   //コンストレイント
   public Deque<HashMap<String,Constraint>> constr = new ArrayDeque<HashMap<String,Constraint>>();
   //newした回数を記録
-  public int ptCnt = 0;
+  public int newCnt = 0;
 
   @Override
   public String visitBlock(JavaParser.BlockContext ctx) {
@@ -131,7 +131,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       var currentConstr = constr.peekFirst().get(location);
 
       if(currentConstr == null){
-        err.println(instance+"is not instanciated");
+        err.println(instance+" is not instanciated");
       }
 
       String fieldType = currentConstr.cmap.get(field);
@@ -143,28 +143,34 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       var creator = ctx.creator();
       var locations = creator.paramLocation().IDENTIFIER();
       var arguments = creator.classCreatorRest().arguments().expressionList().expression();
-      int max = arguments.size();
-      //newした回数を記録
-      ptCnt++;
+      int currentNewCnt = ++newCnt; //newした回数を記録
 
+      //コンストレイント追加
+      constr.peekFirst().put("pt"+currentNewCnt, null);
+
+      //コンストラクタが要求する型環境
       String cName = creator.createdName().getText();
-
-      //コンストラクタの引数->型
       var pmap = Data.ct.get(cName).cons.pmap;
+
+      //与えられた引数の型
+      List<String> argTypes = new ArrayList<String>();
 
       int cnt=0;
       for (String key : pmap.keySet()) {
         String pType = pmap.get(key);
         String type = visit(arguments.get(cnt));
+        cnt++;
 
         //コンストラクタの型と仮引数の型が一致していなかったらエラー
-        if(!pType.equals(type) && (pType.contains("ptr") && !type.equals("NULL")) ){
+        if(!pType.equals(type) && (pType.contains("ptr") && !(type.equals("NULL") || type.contains("ptr"))) ){
+          out.println("pType:"+pType);
+          out.println("Type:"+type);
           err.println("constructors cannot be applied to given types.");
         }
-        cnt++;
+        argTypes.add(type);
       }
       //コンストラクタと引数の数が一致していなかったらエラー
-      if(cnt != max){
+      if(pmap.keySet().size() != arguments.size()){
         err.println("constructors cannot be applied to given types.");
       }
 
@@ -172,25 +178,33 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       Constraint newConstr = new Constraint();
       newConstr.className = cName;
 
-      //コンストラクタの事後条件のコンストレイント
+      //コンストラクタの事後条件
       var postCmap = Data.ct.get(cName).cons.post;
 
       //コンストレイント更新
-      //TODO
-      //フィールドが引数よりも多いとうまくいかない
+      //事後条件の位置は一つだけ
+      //引数と外から与える位置の順番は固定である必要がある
       cnt=0;
       for (String loc : postCmap.keySet()) {
         for (String key : postCmap.get(loc).cmap.keySet()) {
-          String type = visit(arguments.get(cnt));
-          newConstr.cmap.put(key, type);
-          cnt++;
+          String type = postCmap.get(loc).cmap.get(key);
+          if(type.contains("ptr")){
+            String aType = argTypes.get(cnt);
+            if(aType.equals("NULL")){
+              newConstr.cmap.put(key, "NULL");
+            }else{
+              newConstr.cmap.put(key, "ptr("+locations.get(cnt).getText()+")");
+            }
+            cnt++;
+          }else{
+            newConstr.cmap.put(key, type);
+          }
         }
       }
 
-      //コンストレイントをスタックに追加
-      var currentConstr = constr.peekFirst();
-      currentConstr.put("pt"+ptCnt, newConstr);
-      return "ptr(pt"+ptCnt+")";
+      //コンストレイント更新
+      constr.peekFirst().replace("pt"+currentNewCnt, newConstr);
+      return "ptr(pt"+currentNewCnt+")";
     }
 
     //メソッド呼び出しのとき
@@ -225,27 +239,28 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
   //型環境を出力
   void printTypeEnv(){
+    out.println("  Type Environment:");
     var it = env.iterator();
     while(it.hasNext()){
       var currentEnv = it.next();
       for (String key : currentEnv.keySet()) {
-        out.print(key+":"+currentEnv.get(key)+", ");
+        out.println("    "+key+":"+currentEnv.get(key));
       }
     }
-    out.println();
   }
 
   //コンストレイントを出力
   void printConstraint(){
+    out.println("  Constraint:");
     var it = constr.iterator();
     while(it.hasNext()){
       var currentConstr = it.next();
       for (String loc : currentConstr.keySet()) {
         var c = currentConstr.get(loc);
-        out.println(loc+" => ");
-        out.println("  c:"+c.className);
+        out.println("    "+loc+" => ");
+        out.println("      c:"+c.className);
         for (String val : c.cmap.keySet()) {
-          System.out.println("  "+val + " => " + c.cmap.get(val));
+          System.out.println("      "+val + " => " + c.cmap.get(val));
         }
       }
     }
