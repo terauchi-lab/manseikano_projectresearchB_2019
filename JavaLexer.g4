@@ -79,7 +79,7 @@ TRY:                'try';
 VOID:               'void';
 VOLATILE:           'volatile';
 WHILE:              'while';
-PTR:                'ptr';
+REF:                'Ref';
 
 // Literals
 
@@ -87,7 +87,7 @@ DECIMAL_LITERAL:    ('0' | [1-9] (Digits? | '_'+ Digits)) [lL]?;
 HEX_LITERAL:        '0' [xX] [0-9a-fA-F] ([0-9a-fA-F_]* [0-9a-fA-F])? [lL]?;
 OCT_LITERAL:        '0' '_'* [0-7] ([0-7_]* [0-7])? [lL]?;
 BINARY_LITERAL:     '0' [bB] [01] ([01_]* [01])? [lL]?;
-                    
+
 FLOAT_LITERAL:      (Digits '.' Digits? | '.' Digits) ExponentPart? [fFdD]?
              |       Digits (ExponentPart [fFdD]? | [fFdD])
              ;
@@ -153,17 +153,19 @@ COLONCOLON:         '::';
 // Additional symbols not defined in the lexical specification
 AT:                 '@';
 ELLIPSIS:           '...';
+
 // Whitespace and comments
 WS:                 [ \t\r\n\u000C]+ -> channel(HIDDEN);
-COMMENT:            '/*' .*? '*/'    -> channel(HIDDEN);
 LINE_COMMENT:       '//' ~[\r\n]*    -> channel(HIDDEN);
+LCOMMENT:           '/*@';
+RCOMMENT:           '@*/';
+
+
 
 // Identifiers
-
 IDENTIFIER:         Letter LetterOrDigit*;
 
 // Fragment rules
-
 fragment ExponentPart
     : [eE] [+-]? Digits
     ;
