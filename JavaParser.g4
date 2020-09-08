@@ -142,10 +142,10 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    : condition* typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
+    : condition? typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
       (THROWS qualifiedNameList)?
       methodBody
-      condition*
+      condition?
     ;
 
 methodBody
@@ -167,7 +167,7 @@ genericConstructorDeclaration
     ;
 
 constructorDeclaration
-    : condition IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block condition
+    : condition? (LCOMMENT refType RCOMMENT) IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block condition?
     ;
 
 fieldDeclaration
@@ -459,9 +459,9 @@ literal
   ;
 
   methodCall
-  : IDENTIFIER '(' expressionList? ')'
-  | THIS '(' expressionList? ')'
-  | SUPER '(' expressionList? ')'
+  : IDENTIFIER '(' expressionList? ')' LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
+  | THIS '(' expressionList? ')' LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
+  | SUPER '(' expressionList? ')' LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
   ;
 
   expression
@@ -538,7 +538,7 @@ classType
 
 creator
     : nonWildcardTypeArguments createdName classCreatorRest
-    | createdName (arrayCreatorRest | classCreatorRest) paramLocation
+    | createdName (arrayCreatorRest | classCreatorRest) LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
     ;
 
 paramLocation
@@ -585,7 +585,7 @@ typeList
     ;
 
 typeType
-    : annotation? (classOrInterfaceType | primitiveType | refType) ('[' ']')*
+    : annotation? ((LCOMMENT refType RCOMMENT)? classOrInterfaceType | primitiveType)  ('[' ']')*
     ;
 
 primitiveType
@@ -600,11 +600,11 @@ primitiveType
     ;
 
 refType
-    : PTR '(' IDENTIFIER ')'
+    :  REF IDENTIFIER
     ;
 
 condition
-    : '[' delta* (';')? constraints* ']'
+    : LCOMMENT '[' delta? (';')? constraints? ']' RCOMMENT
     ;
 
 delta
@@ -612,15 +612,15 @@ delta
     ;
 
 constraints
-    : constraint ('+' constraint)*
+    : constraint (',' constraint)*
     ;
 
 constraint
-    : '{' IDENTIFIER '->' '{' IDENTIFIER ':' IDENTIFIER ',' param (',' param )* '}' '}'
+    : IDENTIFIER '->' '{' IDENTIFIER ':' IDENTIFIER (',' param )* '}'
     ;
 
 param
-    : IDENTIFIER ':' typeType
+    : IDENTIFIER ':' (typeType | refType)
     ;
 
 typeArguments

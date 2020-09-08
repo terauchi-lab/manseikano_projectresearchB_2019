@@ -1,29 +1,22 @@
-class A {
-  ptr(_) x;
+class A {}
 
-  []
-  A(ptr(py) y){
-    x = y;
+class B extends A {
+  A x;
+
+  /*@ [pt; pt->{c:B, x:NULL}] @*/
+  /*@ Ref pt@*/ A m(){
+    return this.x = new B()/*@[][p]@*/;
   }
-  [p, py; {p -> {c:A, x:ptr(py)}}]
-
+  /*@ [p; pt->{c:B,x:Ref p}, p->{c:B, x:NULL}] @*/
 }
 
-class B {
-  ptr(_) x;
-  int z;
+class C extends A{}
 
-  []
-  A(ptr(py) y){
-    x = y;
-  }
-  [p, py; {p -> {c:A, x:ptr(py), z:int}}]
-
-}
-
-class Main {
+class Test2 {
   void main(){
-    ptr(pt1) a = new A(new A(null)[x1])[pt2];
-    a.x = new B(null)[x2];
+    B b1 = new B()/*@[][p1]@*/;
+    b1.m()/*@[p1][p2]@*/;
+    b1.x = new C()/*@[][p3]@*/;
+    b1.x = new A()/*@[][p4]@*/;
   }
 }

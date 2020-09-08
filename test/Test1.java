@@ -1,17 +1,19 @@
-class A {
-  ptr(_) x;
+class A {}
 
-  []
-  A(ptr(py) y){
-    x = y;
+class B extends A {
+  A x;
+
+  /*@ [pa;] @*/
+  /*@ Ref p @*/ B(/*@ Ref pa @*/ A pa){
+    x = pa;
   }
-  [p, py; {p -> {c:A, x:ptr(py)}}]
-
+  /*@ [p; p->{c:B, x:Ref pa}] @*/
 }
 
-class Main {
-  void main(){
-    ptr(pt1) a = new A(new A(null)[x1])[pt2];
-    a.x = new A(null)[x2];
+class Test1 {
+  public static void main(String[] args){
+    A a = new A()/*@ [][p1] @*/;
+    B b = new B(a)/*@ [p1][p2] @*/;
+    b.x = b;
   }
 }
