@@ -2,7 +2,6 @@ class A {}
 
 class B extends A {
   A x;
-
   /*@ [pa;] @*/
   /*@ Ref p @*/ B(/*@ Ref pa @*/ A pa){
     x = pa;
