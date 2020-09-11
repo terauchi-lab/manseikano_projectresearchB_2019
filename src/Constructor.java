@@ -2,8 +2,8 @@ import java.util.*;
 class Constructor {
   public String returnType;
 
-  public LinkedList<String> abstLocs = new LinkedList<String>(); //Delta_forall
-  public LinkedList<String> bindLocs = new LinkedList<String>(); //Delta_exists
+  public ArrayList<String> abstLocs = new ArrayList<String>(); //Delta_forall
+  public ArrayList<String> bindLocs = new ArrayList<String>(); //Delta_exists
 
   //Argument->Type
   public HashMap<String,String> argType = new HashMap<String,String>();

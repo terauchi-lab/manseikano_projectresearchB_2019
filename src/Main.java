@@ -32,12 +32,12 @@ public class Main {
     //}
 
     //GUI表示
-    TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
-    viewr.open();
+    //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
+    //viewr.open();
 
     //クラステーブルを生成するvisitor
-    //MakeClassTable makeClassTable = new MakeClassTable();
-    //makeClassTable.visit(tree);
+    MakeClassTable makeClassTable = new MakeClassTable();
+    makeClassTable.visit(tree);
 
     //クラステーブルを保管
     //Data.ct = makeClassTable.ct;
