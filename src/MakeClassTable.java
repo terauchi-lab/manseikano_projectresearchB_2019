@@ -6,187 +6,164 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   //クラステーブル
   public HashMap<String, Class> ct = new HashMap<String, Class>();
   //クラス名一時保管
-  public Deque<String> st = new ArrayDeque<String>();
+  public Deque<String> clsSt = new ArrayDeque<String>();
   //引数の型を一時保管
-  public Deque<HashMap<String, String>> argStack = new ArrayDeque<HashMap<String, String>>();
+  public HashMap<String, String> arg = new HashMap<String, String>();
   //コンストレイント一時保管
-  public Deque<HashMap<String,Constraint>> conditionStack = new ArrayDeque<HashMap<String,Constraint>>();
+  public HashMap<String,Constraint> constraint = new HashMap<String,Constraint>();
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
     ct.put(cName, new Class());
-    st.addFirst(cName);
+    clsSt.addFirst(cName);
     visitChildren(ctx);
-    st.removeFirst();
+    clsSt.removeFirst();
     return null;
   }
 
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
-    String cName = st.peekFirst();
+    String cName = clsSt.peekFirst();
     Class c = ct.get(cName);
 
     c.cons = new Constructor();
 
-    String pre = ctx.SCOMMENT().get(0).getText();
-    String retType = ctx.SCOMMENT().get(1).getText();
-    String post = ctx.SCOMMENT().get(2).getText();
+    var preCondition = ctx.condition().get(0);
+    var postCondition = ctx.condition().get(1);
 
-    var locAndCond = pre.trim().replaceAll(" ","").replaceAll("　","").substring(4,pre.length()-4).split(";");
-    String locs = null;
-    String constraints = null;
-
-    if(locAndCond.length == 1){
-      locs = locAndCond[0];
-    }else if(locAndCond.length == 2){
-      constraints = locAndCond[1];
-    }
-
-    //Delta_forallを追加
-    if(locs != null){
-      for (var loc : locs.split(",")){
-        System.out.println(loc);
-        c.cons.abstLocs.add(loc);
+    //事前条件があれば生成
+    if(preCondition != null){
+      var abstLocs = ctx.condition().get(0).delta();
+      for (var loc: abstLocs.IDENTIFIER()) {
+        c.cons.abstLocs.add(loc.getText());
       }
-    }
 
-    //事前条件を追加
-    if(constraints != null){
       c.cons.pre = new HashMap<String,Constraint>();
-      Constraint newConst = new Constraint();
+      constraint = c.cons.pre;
+      visit(ctx.condition().get(0));
+      constraint = null;
+    }
 
-      for (var constraint : constraints.split("\\+")){
-        var s = constraint.split("->");
-        if(s.length == 2){
-          var loc = s[0].substring(1);
-          System.out.println(loc);
-
-          var fields = s[1].substring(1,s[1].length()-2).split(",");
-          for(int i=0; i<fields.length; i++){
-            var val = fields[0];
-            var type = fields[1];
-            if(i==0){
-              newConst.className = val;
-            }else{
-              newConst.fieldType.put(val,type);
-            }
-            newConst.fieldType.put(val,type);
-          }
-          c.cons.pre.put(loc, newConst);
-        }
-
+    //事後条件があれば生成
+    if(postCondition != null){
+      var bindLocs = ctx.condition().get(1).delta();
+      for (var loc: bindLocs.IDENTIFIER()) {
+        c.cons.bindLocs.add(loc.getText());
       }
-    }
 
-    //返り値型を追加
-    var rType = retType.trim().replaceAll(" ","").replaceAll("　","").substring(3,pre.length()-3);
-    c.cons.returnType = rType;
-
-    locAndCond = post.trim().replaceAll(" ","").replaceAll("　","").substring(4,post.length()-4).split(";");
-    locs = null;
-    constraints = null;
-
-    if(locAndCond.length == 1){
-      locs = locAndCond[0];
-    }else if(locAndCond.length == 2){
-      constraints = locAndCond[1];
-    }
-
-    //Delta_existsを追加
-    if(locs != null){
-      for (var loc : locs.split(",")){
-        System.out.println(loc);
-        c.cons.bindLocs.add(loc);
-      }
-    }
-
-    //事後条件を追加
-    if(constraints != null){
       c.cons.post = new HashMap<String,Constraint>();
-      Constraint newConst = new Constraint();
-
-      for (var constraint : constraints.split("\\+")){
-        var s = constraint.split("->");
-        if(s.length == 2){
-          var loc = s[0].substring(1);
-          System.out.println(loc);
-
-          var fields = s[1].substring(1,s[1].length()-2).split(",");
-          for(int i=0; i<fields.length; i++){
-            var val = fields[0];
-            var type = fields[1];
-            if(i==0){
-              newConst.className = val;
-            }else{
-              newConst.fieldType.put(val,type);
-            }
-            newConst.fieldType.put(val,type);
-          }
-          c.cons.post.put(loc, newConst);
-        }
-      }
+      constraint = c.cons.post;
+      visit(ctx.condition().get(1));
+      constraint = null;
     }
 
-    argStack.addFirst(c.cons.argType);
+    //返り値型を記録
+    var returnType = ctx.refType().getText();
+    c.cons.returnType = returnType;
+
+    arg = c.cons.argType;
     visit(ctx.formalParameters());
-    argStack.removeFirst();
+    arg = null;
     return null;
   }
 
   @Override
   public String visitFormalParameter(JavaParser.FormalParameterContext ctx) {
-    var map = argStack.peekFirst();
+    String id = ctx.variableDeclaratorId().getText();
+    var typeType = ctx.typeType();
 
-    //メソッドをちゃんと定義すればいらない
-    if(map != null){
-      String type = ctx.getChild(0).getText();
-      String id = ctx.getChild(1).getText();
-      map.put(id, type);
+    if(typeType.refType() != null){
+      var type = typeType.refType().getText();
+      arg.put(id, type);
+    }else{
+      var type = typeType.primitiveType().getText();
+      arg.put(id, type);
     }
     return null;
   }
 
-  //@Override
-  //public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
-  //  String type = ctx.typeTypeOrVoid().getText();
-  //  String id = ctx.IDENTIFIER().getText();
+  @Override
+  public String visitConstraint(JavaParser.ConstraintContext ctx) {
+    String location = ctx.IDENTIFIER().get(0).getText();
+    Constraint c = new Constraint();
+    c.className = clsSt.peekFirst();
 
-  //  String cName = st.peekFirst();
-  //  Class c = ct.get(cName);
+    //各変数の型をマップに追加
+    for(int i=0; i<ctx.param().size(); i++){
+      String id = ctx.param().get(i).IDENTIFIER().getText();
+      String type;
+      if(ctx.param().get(i).refType() == null){
+        type = ctx.param().get(i).typeType().getText();
+      }else{
+        type = ctx.param().get(i).refType().getText();
+      }
+      c.fieldType.put(id, type);
+    }
 
-  //  //メソッドがなければ生成
-  //  if(c.methodMap == null){
-  //    c.methodMap = new HashMap<String, Method>();
-  //  }
+    //コンストレイント更新
+    constraint.put(location, c);
+    return visitChildren(ctx);
+  }
 
-  //  Method m = new Method();
-  //  m.returnType = type;
+  @Override
+  public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
+    String cName = clsSt.peekFirst();
+    Class c = ct.get(cName);
 
-  //  c.methodMap.put(id, m);
+    //メソッドがなければ生成
+    if(c.method == null){
+      c.method = new HashMap<String, Method>();
+    }
 
-  //  var preCondition = ctx.condition(0);
-  //  var postCondition = ctx.condition(1);
+    Method m = new Method();
 
-  //  if(preCondition != null){
-  //    m.pre = new HashMap<String,Constraint>();
-  //    conditionStack.addFirst(m.pre);
-  //    visit(ctx.condition().get(0));
-  //    conditionStack.removeFirst();
-  //  }
+    String id = ctx.IDENTIFIER().getText();
+    String type;
+    var typeType = ctx.typeTypeOrVoid();
 
-  //  if(postCondition != null){
-  //    m.post = new HashMap<String,Constraint>();
-  //    conditionStack.addFirst(m.post);
-  //    visit(ctx.condition().get(1));
-  //    conditionStack.removeFirst();
-  //  }
+    //返り値型を追加
+    if(typeType.VOID() != null){
+      type = typeType.getText();
+    }else if(typeType.typeType().refType() != null){
+      type = typeType.typeType().refType().getText();
+    }else{
+      type = typeType.typeType().primitiveType().getText();
+    }
+    m.returnType = type;
 
-  //  paramStack.addFirst(m.pmap);
-  //  visit(ctx.formalParameters());
-  //  paramStack.removeFirst();
+    var preCondition = ctx.condition(0);
+    var postCondition = ctx.condition(1);
 
-  //  return null;
-  //}
+    if(preCondition != null){
+      var abstLocs = ctx.condition().get(0).delta();
+      for (var loc: abstLocs.IDENTIFIER()) {
+        m.abstLocs.add(loc.getText());
+      }
+
+      constraint = m.pre;
+      visit(ctx.condition().get(0));
+      constraint = null;
+    }
+
+    if(postCondition != null){
+      var bindLocs = ctx.condition().get(1).delta();
+      for (var loc: bindLocs.IDENTIFIER()) {
+        m.bindLocs.add(loc.getText());
+      }
+
+      constraint = m.post;
+      visit(ctx.condition().get(1));
+      constraint = null;
+    }
+
+    arg = m.argType;
+    visit(ctx.formalParameters());
+    arg = null;
+
+    //辞書にメソッド追加
+    c.method.put(id, m);
+    return null;
+  }
 
 }
