@@ -15,7 +15,13 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
-    ct.put(cName, new Class());
+    var c = new Class();
+    ct.put(cName, c);
+
+    //クラスを継承していたら親クラスを記録
+    if(ctx.EXTENDS() != null){
+      c.sClass = ctx.typeType().getText();
+    }
     clsSt.addFirst(cName);
     visitChildren(ctx);
     clsSt.removeFirst();
