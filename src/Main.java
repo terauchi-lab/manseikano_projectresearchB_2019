@@ -13,24 +13,6 @@ public class Main {
     JavaParser parser = new JavaParser(tokens);
     ParseTree tree = parser.compilationUnit();
 
-    //show tokwns
-    //tokens.fill();
-    //for (int index = 0; index < tokens.size(); index++){
-    //   Token token = tokens.get(index);
-    //   // substitute whatever parser you have
-    //   if (token.getType() != lexer.WS)
-    //   {
-    //      String out = "";
-    //      // Comments will be printed as channel 2 (configured in .g4 grammar file)
-    //      out += "Channel: " + token.getChannel();
-    //      out += " Type: " + token.getType();
-    //      out += " token: ";
-    //      List<Token> hiddenTokensToLeft = tokens.getHiddenTokensToLeft(index);
-    //      out += token.getText().replaceAll("\\s", "");
-    //      System.out.println(out);
-    //   }
-    //}
-
     //GUI表示
     //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
     //viewr.open();
@@ -40,15 +22,15 @@ public class Main {
     makeClassTable.visit(tree);
 
     //クラステーブルを保管
-    //Data.ct = makeClassTable.ct;
+    Data.ct = makeClassTable.ct;
 
     //デバッグ
     //printClassTable(Data.ct);
     //out.println("**Debug**");
 
     //型付けを行うvisiotr
-    //TypeCheck typeCheck = new TypeCheck();
-    //typeCheck.visit(tree);
+    TypeCheck typeCheck = new TypeCheck();
+    typeCheck.visit(tree);
   }
 
   //クラステーブルを出力
