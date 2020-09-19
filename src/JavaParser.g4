@@ -142,10 +142,10 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    : condition? typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
+    : pre=condition? typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
       (THROWS qualifiedNameList)?
       methodBody
-      condition?
+      post=condition?
     ;
 
 methodBody
@@ -167,7 +167,7 @@ genericConstructorDeclaration
     ;
 
 constructorDeclaration
-    : condition? (LCOMMENT refType RCOMMENT) IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block condition?
+    : pre=condition? (LCOMMENT refType RCOMMENT) IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block post=condition?
     ;
 
 fieldDeclaration
@@ -459,9 +459,9 @@ literal
   ;
 
   methodCall
-  : IDENTIFIER '(' expressionList? ')' LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
-  | THIS '(' expressionList? ')' LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
-  | SUPER '(' expressionList? ')' LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
+  : IDENTIFIER '(' expressionList? ')' LCOMMENT '[' forall=delta* ']' '[' exists=delta* ']' RCOMMENT
+  | THIS '(' expressionList? ')' LCOMMENT '[' forall=delta* ']' '[' exists=delta* ']' RCOMMENT
+  | SUPER '(' expressionList? ')' LCOMMENT '[' forall=delta* ']' '[' exists=delta* ']' RCOMMENT
   ;
 
   expression
@@ -538,7 +538,7 @@ classType
 
 creator
     : nonWildcardTypeArguments createdName classCreatorRest
-    | createdName (arrayCreatorRest | classCreatorRest) LCOMMENT '[' delta* ']' '[' delta* ']' RCOMMENT
+    | createdName (arrayCreatorRest | classCreatorRest) LCOMMENT '[' forall=delta* ']' '[' exists=delta* ']' RCOMMENT
     ;
 
 paramLocation
@@ -616,7 +616,7 @@ constraints
     ;
 
 constraint
-    : IDENTIFIER '->' '{' IDENTIFIER ':' IDENTIFIER (',' param )* '}'
+    : IDENTIFIER '->' '{' IDENTIFIER ':' className=IDENTIFIER (',' param )* '}'
     ;
 
 param
