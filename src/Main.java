@@ -25,8 +25,8 @@ public class Main {
     Data.ct = makeClassTable.ct;
 
     //デバッグ
-    printClassTable(Data.ct);
-    out.println("**Debug**");
+    //printClassTable(Data.ct);
+    //out.println("**Debug**");
 
     //型付けを行うvisiotr
     TypeCheck typeCheck = new TypeCheck();
@@ -43,19 +43,12 @@ public class Main {
 
       Class c = ct.get(key);
 
-      out.println("Field");
-      if(c.fmap != null){
-        for (String id : c.fmap.keySet()) {
-          System.out.println("  "+id + " => " + c.fmap.get(id));
-        }
-      }
-
       out.println("Constructor");
       Constructor cons = ct.get(key).cons;
       out.println("  Params");
       if(cons != null){
-        for (String id : cons.pmap.keySet()) {
-          System.out.println("    "+id + " => " + cons.pmap.get(id));
+        for (String id : cons.argType.keySet()) {
+          System.out.println("    "+id + " => " + cons.argType.get(id));
         }
 
         out.println("  Pre Condition");
@@ -63,8 +56,8 @@ public class Main {
           for (String id : cons.pre.keySet()) {
             Constraint constraint = cons.pre.get(id);
             out.println("    "+constraint.className+ " => ");
-            for (String val : constraint.cmap.keySet()) {
-              System.out.println("      "+val + " => " + constraint.cmap.get(val));
+            for (String val : constraint.fieldType.keySet()) {
+              System.out.println("      "+val + " => " + constraint.fieldType.get(val));
             }
           }
         }
@@ -74,49 +67,49 @@ public class Main {
             Constraint constraint = cons.post.get(id);
             out.println("    "+id+ " => ");
             out.println("      "+"c : "+constraint.className);
-            for (String val : constraint.cmap.keySet()) {
-              System.out.println("      "+val + " => " + constraint.cmap.get(val));
+            for (String val : constraint.fieldType.keySet()) {
+              System.out.println("      "+val + " => " + constraint.fieldType.get(val));
             }
           }
         }
       }
 
-      out.println("Method");
-      if(c.methodMap != null){
-        for (String id : c.methodMap.keySet()) {
-          out.println("method: "+id);
+      //out.println("Method");
+      //if(c.methodMap != null){
+      //  for (String id : c.methodMap.keySet()) {
+      //    out.println("method: "+id);
 
-          Method m = c.methodMap.get(id);
-          out.println("  Params");
-          for (String val : m.pmap.keySet()) {
-            System.out.println("    "+val + " => " + m.pmap.get(val));
-          }
-          out.println("  Return Type");
-          out.println("    "+m.returnType);
+      //    Method m = c.methodMap.get(id);
+      //    out.println("  Params");
+      //    for (String val : m.pmap.keySet()) {
+      //      System.out.println("    "+val + " => " + m.pmap.get(val));
+      //    }
+      //    out.println("  Return Type");
+      //    out.println("    "+m.returnType);
 
-          out.println("  Pre Condition");
-          if(m.pre != null){
-            for (String loc : m.pre.keySet()) {
-              Constraint constraint = m.pre.get(loc);
-              out.println("    "+constraint.className+ " => ");
-              for (String val : constraint.cmap.keySet()) {
-                System.out.println("      "+val + " => " + constraint.cmap.get(val));
-              }
-            }
-          }
-          out.println("  Post Condition");
-          if(m.post != null){
-            for (String loc : m.post.keySet()) {
-              Constraint constraint = m.post.get(loc);
-              out.println("    "+id+ " => ");
-              out.println("      "+"c : "+constraint.className);
-              for (String val : constraint.cmap.keySet()) {
-                System.out.println("      "+val + " => " + constraint.cmap.get(val));
-              }
-            }
-          }
-        }
-      }
+      //    out.println("  Pre Condition");
+      //    if(m.pre != null){
+      //      for (String loc : m.pre.keySet()) {
+      //        Constraint constraint = m.pre.get(loc);
+      //        out.println("    "+constraint.className+ " => ");
+      //        for (String val : constraint.cmap.keySet()) {
+      //          System.out.println("      "+val + " => " + constraint.cmap.get(val));
+      //        }
+      //      }
+      //    }
+      //    out.println("  Post Condition");
+      //    if(m.post != null){
+      //      for (String loc : m.post.keySet()) {
+      //        Constraint constraint = m.post.get(loc);
+      //        out.println("    "+id+ " => ");
+      //        out.println("      "+"c : "+constraint.className);
+      //        for (String val : constraint.cmap.keySet()) {
+      //          System.out.println("      "+val + " => " + constraint.cmap.get(val));
+      //        }
+      //      }
+      //    }
+      //  }
+      //}
 
       out.println();
     }

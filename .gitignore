@@ -3,6 +3,7 @@
 *.interp
 *.tokens
 JavaLexer.java
-JavaParser.java
-JavaParserBaseVisitor.java
-JavaParserVisitor.java
+src/JavaParser.java
+src/JavaParserBaseVisitor.java
+src/JavaParserVisitor.java
+out/
