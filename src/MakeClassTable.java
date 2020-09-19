@@ -116,16 +116,15 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     Method m = new Method();
 
     String id = ctx.IDENTIFIER().getText();
-    String type;
     var typeType = ctx.typeTypeOrVoid().typeType();
 
     //返り値型を追加
     if(ctx.typeTypeOrVoid().VOID() != null){
       m.returnType = ctx.typeTypeOrVoid().getText();
     }else if(typeType.refType() != null){
-      type = typeType.refType().getText();
+      m.returnType = typeType.refType().getText();
     }else{
-      type = typeType.primitiveType().getText();
+      m.returnType = typeType.primitiveType().getText();
     }
 
     if(ctx.pre != null && ctx.pre.delta() != null){
@@ -138,7 +137,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     }
 
     if(ctx.post != null && ctx.post.delta() != null){
-      for (var loc: ctx.condition().get(1).delta().IDENTIFIER()) {
+      for (var loc: ctx.post.delta().IDENTIFIER()) {
         m.bindLocs.add(loc.getText());
       }
       constraint = m.post;
