@@ -1,106 +1,118 @@
 import java.util.*;
 import static java.lang.System.*;
-import org.antlr.v4.runtime.*;
 
 public class TypeCheck extends JavaParserBaseVisitor<String> {
   //クラス名保管
-  public Deque<String> st = new ArrayDeque<String>();
+  public Deque<String> clsSt = new ArrayDeque<>();
   //型環境
-  public Deque<HashMap<String,String>> env = new ArrayDeque<HashMap<String,String>>();
+  public Deque<HashMap<String,String>> env = new ArrayDeque<>();
   //コンストレイント
-  public Deque<HashMap<String,Constraint>> constr = new ArrayDeque<HashMap<String,Constraint>>();
-  //newした回数を記録
-  public int newCnt = 0;
+  public HashMap<String,Constraint> constraint = new HashMap<>();
+  //Delta_forall
+  public ArrayList<String> abstLocs = new ArrayList<>();
+  //Delta_exists
+  public ArrayList<String> bindLocs = new ArrayList<>();
 
   @Override
   public String visitBlock(JavaParser.BlockContext ctx) {
-    //ブロックに入ったら型環境とコンストレイントを追加
+    //ブロックに入ったら型環境をスタックに追加
     var newEnv = new HashMap<String,String>();
-    var newConstr = new HashMap<String,Constraint>();
     env.addFirst(newEnv);
-    constr.addFirst(newConstr);
 
     visitChildren(ctx);
 
-    //ブロックを抜けたら型環境とコンストレイントを削除
+    //ブロックを抜けたら最新の型環境をスタックから削除
     env.removeFirst();
-    constr.removeFirst();
     return null;
   }
 
   @Override public String visitBlockStatement(JavaParser.BlockStatementContext ctx) {
-    String cName = st.peekFirst();
+    String cName = clsSt.peekFirst();
 
-    if(!cName.equals("Main")){
-      return visitChildren(ctx);
-    }else{
+    if(cName.contains("Test")){
       visitChildren(ctx);
-
-      //mainの1文ごとに型環境とコンストレイントを出力
-      int line = ctx.getStart().getLine();
-      out.println("Line "+line+":");
-      printTypeEnv();
-      printConstraint();
       return null;
+    }else{
+      return visitChildren(ctx);
     }
   }
 
   @Override public String visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
-    var decList = ctx.variableDeclarators().variableDeclarator();
-    int max = decList.size();
-    String type = ctx.typeType().getText();
+    String type;
+    if(ctx.typeType().classOrInterfaceType() != null){
+      type = "NULL";
+    }else{
+      type = ctx.typeType().getText();
+    }
     var currentEnv = env.peekFirst();
 
-    //変数宣言or初期化時に型環境に追加
+    //変数宣言時に型環境に追加
+    var decList = ctx.variableDeclarators().variableDeclarator();
     for(var dec : decList){
+      //初期化
+      if(dec.variableInitializer() != null){
+        type = visit(dec.variableInitializer());
+      }
       String id = dec.variableDeclaratorId().getText();
       currentEnv.put(id, type);
     }
 
-    return visitChildren(ctx);
+    return type;
   }
 
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
-
-    st.addFirst(cName);
+    clsSt.addFirst(cName);
     visitChildren(ctx);
-    st.removeFirst();
-    return null;
-  }
-
-  @Override
-  public String visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
-    int max = ctx.variableDeclarators().variableDeclarator().size()-1;
-    var initializer = ctx.variableDeclarators().variableDeclarator(max).variableInitializer();
-
-    //変数の初期化の型が一致しているか
-    if(initializer != null){
-      String type = visit(initializer);
-      String idType = ctx.typeType().getText();
-      if(!idType.equals(type)){
-        err.println(idType+" can not be converted to "+ type);
-      }
-    }
+    clsSt.removeFirst();
     return null;
   }
 
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
-    return visitChildren(ctx);
+    String cName = clsSt.peekFirst();
+    var cons = Data.ct.get(cName).cons;
+    abstLocs = copyStringList(cons.abstLocs);
+    bindLocs = copyStringList(cons.bindLocs);
+    bindLocs.add("pt");
+    constraint = copyConstraintMap(cons.pre);
+
+    var newEnv = cons.argType;
+    env.addFirst(newEnv);
+    env.peekFirst().put("this", "Refpt");
+
+    visitChildren(ctx);
+
+    abstLocs = null;
+    bindLocs = null;
+    constraint = null;
+    env.removeFirst();
+    return null;
   }
 
   @Override
   public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
-    String returnType = ctx.typeTypeOrVoid().getText();
-    String exprType = visitChildren(ctx);
+    String cName = clsSt.peekFirst();
+    var mName = ctx.IDENTIFIER().getText();
+    var m = Data.ct.get(cName).method.get(mName);
+    abstLocs = copyStringList(m.abstLocs);
+    bindLocs = copyStringList(m.bindLocs);
+    constraint = copyConstraintMap(m.pre);
 
-    //関数の返り値の型が正しいか
-    //if(!returnType.equals(exprType)){
-    //    err.println("invalid return type");
-    //}
+    var newEnv = m.argType;
+    env.addFirst(newEnv);
+    if(!Data.ct.get(cName).method.containsKey("main")){
+      env.peekFirst().put("this", "Refpt");
+    }
+
+    visitChildren(ctx);
+
+    abstLocs = null;
+    bindLocs = null;
+    constraint = null;
+    env.removeFirst();
     return null;
   }
 
@@ -109,137 +121,323 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     //基本型の値のとき
     if(ctx.primary() != null){
+      for (var item : env ) {
+        if(item.containsKey(ctx.primary().getText())){
+          return item.get(ctx.primary().getText());
+        }
+      }
       return visit(ctx.primary());
     }
 
     //フィールド参照のとき
-    if(ctx.bop != null && ctx.bop.getText().equals(".")){
+    if(ctx.bop != null && ctx.bop.getText().equals(".") && ctx.IDENTIFIER() != null){
       String instance = ctx.getChild(0).getText();
       String field = ctx.IDENTIFIER().getText();
 
       var currentEnv = env.peekFirst();
       String type = currentEnv.get(instance);
+      String location = type.substring(3);
 
-      if(type == null){
-        err.println(instance+" is not declared");
+      var obj = constraint.get(location);
+
+      //objがコンストレイントになかったら
+      if(obj == null){
+        err.println(location+" is not found");
+        return null;
       }
 
-      int left = type.indexOf("(")+1;
-      int right = type.indexOf(")");
-      String location = type.substring(left, right);
-
-      var currentConstr = constr.peekFirst().get(location);
-
-      if(currentConstr == null){
-        err.println(instance+" is not instanciated");
-      }
-
-      String fieldType = currentConstr.cmap.get(field);
-      return fieldType;
+      return obj.fieldType.get(field);
     }
 
     //newのとき
-    if(ctx.NEW() != null){
+    if(ctx.NEW() != null) {
       var creator = ctx.creator();
-      var locations = creator.paramLocation().IDENTIFIER();
-      var arguments = creator.classCreatorRest().arguments().expressionList().expression();
-      int currentNewCnt = ++newCnt; //newした回数を記録
+      var arguments = creator.classCreatorRest().arguments();
+      String cName = ctx.creator().createdName().getText();
 
-      //コンストレイント追加
-      constr.peekFirst().put("pt"+currentNewCnt, null);
+      //クラステーブルからコンストラクタ取得
+      var cons = Data.ct.get(cName).cons;
 
-      //コxストラクタが要求する型環境
-      String cName = creator.createdName().getText();
-      var pmap = Data.ct.get(cName).cons.pmap;
-
-      //与えられた引数の型
-      List<String> argTypes = new ArrayList<String>();
-
-      int cnt=0;
-      for (String key : pmap.keySet()) {
-        String pType = pmap.get(key);
-        String type = visit(arguments.get(cnt));
-        cnt++;
-
-        //コンストラクタの型と仮引数の型が一致していなかったらエラー
-        if(!pType.equals(type) && (pType.contains("ptr") && !(type.equals("NULL") || type.contains("ptr"))) ){
-          out.println("pType:"+pType);
-          out.println("Type:"+type);
-          err.println("constructors cannot be applied to given types.");
+      //ユーザーによって与えられた位置を記録
+      var uAbstLocs = new ArrayList<String>();
+      if (creator.forall != null) {
+        for (var loc : creator.forall.IDENTIFIER()) {
+          uAbstLocs.add(loc.getText());
         }
-        argTypes.add(type);
-      }
-      //コンストラクタと引数の数が一致していなかったらエラー
-      if(pmap.keySet().size() != arguments.size()){
-        err.println("constructors cannot be applied to given types.");
       }
 
-      //コンストレイント生成
-      Constraint newConstr = new Constraint();
-      newConstr.className = cName;
+      //ユーザーが束縛する位置を記録
+      var uBindLocs = new ArrayList<String>();
+      if (creator.exists != null) {
+        for (var loc : creator.exists.IDENTIFIER()) {
+          uBindLocs.add(loc.getText());
+        }
+        //delta_existsに位置変数を追加
+        bindLocs.addAll(uBindLocs);
+      }
+
+      int cnt = 0;
+      int locCnt = 0;
+
+      //TODO 型環境は順序もほしいのでhashmapだとだめかも
+      //引数が仮引数の型で型付けできるかをチェック
+      if (1 < cons.argType.size()){
+        for (var key : cons.argType.keySet()) {
+          String pType = cons.argType.get(key);
+          if(key.contains("this")) continue;
+
+          String type = "";
+          if (arguments.expressionList() != null) {
+            type = visit(arguments.expressionList().expression(cnt));
+          }
+
+          if (pType.contains("Ref")) {
+            //ユーザーが与えた引数の型とコンストラクタが一致しない場合
+            if (!isSubtyped(type, pType.replace(cons.abstLocs.get(locCnt), uAbstLocs.get(locCnt)))) {
+              System.out.println("Invalid argument and location");
+              return null;
+            }
+            locCnt++;
+          }
+          cnt++;
+        }
+      }
+
+      //コンストレイントの部分型チェック
+      if(!isSubConstraint(constraint, cons.pre, cons.abstLocs, uAbstLocs)){
+        System.out.println("Invalid constraint");
+        return null;
+      }
 
       //コンストラクタの事後条件
-      var postCmap = Data.ct.get(cName).cons.post;
+      var post = cons.post;
 
-      //コンストレイント更新
-      //事後条件の位置は一つだけ
-      //引数と外から与える位置の順番は固定である必要がある
-      cnt=0;
-      for (String loc : postCmap.keySet()) {
-        for (String key : postCmap.get(loc).cmap.keySet()) {
-          String type = postCmap.get(loc).cmap.get(key);
-          if(type.contains("ptr")){
-            String aType = argTypes.get(cnt);
-            if(aType.equals("NULL")){
-              newConstr.cmap.put(key, "NULL");
-            }else{
-              newConstr.cmap.put(key, "ptr("+locations.get(cnt).getText()+")");
+      //コンストレイント更新(update(C,C'[abst/real]))
+      for (String loc : post.keySet()) {
+        var c = new Constraint();
+
+        //クラスメイトとフィールドの型を記録
+        c.className = post.get(loc).className;
+
+        //抽象化された位置変数を使っているかチェック(コンストレイントのフィールドの型)
+        for (String key : post.get(loc).fieldType.keySet()) {
+          String type = post.get(loc).fieldType.get(key);
+          if(type.contains("Ref")) {
+            //forall
+            for (int i = 0; i < cons.abstLocs.size(); i++) {
+              if (type.substring(3).equals(cons.abstLocs.get(i))) {
+                //ユーザーが定義した位置変数で具体化
+                type = "Ref"+type.substring(3).replace(cons.abstLocs.get(i), uAbstLocs.get(i));
+              }
             }
-            cnt++;
-          }else{
-            newConstr.cmap.put(key, type);
+            //exists
+            for (int i = 0; i < cons.bindLocs.size(); i++) {
+              if (type.substring(3).equals(cons.bindLocs.get(i))) {
+                //ユーザーが定義した位置変数で具体化
+                type = "Ref"+type.substring(3).replace(cons.bindLocs.get(i), uBindLocs.get(i));
+              }
+            }
+          }
+          c.fieldType.put(key, type);
+        }
+
+        //抽象化された位置変数を使っているかチェック(コンストレイントの定義域)
+        //forall
+        for(int i=0; i<cons.abstLocs.size(); i++){
+          if(loc.equals(cons.abstLocs.get(i))){
+            //ユーザーが定義した位置変数で具体化
+            loc = uAbstLocs.get(i);
+          }
+        }
+        //exists
+        for(int i=0; i<cons.bindLocs.size(); i++){
+          if(loc.equals(cons.bindLocs.get(i))){
+            loc = uBindLocs.get(i);
+          }
+        }
+
+        constraint.put(loc, c);
+      }
+
+      return "Ref"+uBindLocs.get(0);
+    }
+
+    //インスタンスメソッド呼び出しのとき
+    if(ctx.methodCall() != null && ctx.bop != null && ctx.bop.getText().equals(".")){
+      var caller = ctx.expression(0).primary().getText();
+      String cName = "";
+      String type = "";
+
+      for (var cEnv : env) {
+        if(cEnv.containsKey(caller)){
+          type = cEnv.get(caller);
+          //インスタンス変数が参照型じゃなかったら
+          if(!type.contains("Ref")){
+            System.out.println(caller+" should have Ref type");
+            return null;
+          }
+        }
+
+        //ポインタが指す先が制約になかったら
+        var point = type.substring(3);
+        if(!constraint.containsKey(point)){
+          System.out.println(point+" isn't in a constraint");
+          return null;
+        }
+        cName = constraint.get(point).className;
+      }
+
+      var arguments = ctx.methodCall().expressionList();
+      String mName = ctx.methodCall().IDENTIFIER().getText();
+
+      //クラステーブルからメソッド取得
+      var method= Data.ct.get(cName).method.get(mName);
+
+      //ユーザーによって与えられた位置を記録
+      var uAbstLocs = new ArrayList<String>();
+      if (ctx.methodCall().forall != null) {
+        for (var loc : ctx.methodCall().forall.IDENTIFIER()) {
+          uAbstLocs.add(loc.getText());
+        }
+      }
+
+      //ユーザーが束縛する位置を記録
+      var uBindLocs = new ArrayList<String>();
+      if (ctx.methodCall().exists != null) {
+        for (var loc : ctx.methodCall().exists.IDENTIFIER()) {
+          uBindLocs.add(loc.getText());
+        }
+        //delta_existsに位置変数を追加
+        bindLocs.addAll(uBindLocs);
+      }
+
+      int cnt = 0;
+      int locCnt = 0;
+
+      //引数が仮引数の型で型付けできるかをチェック
+      if (1 < method.argType.size()){
+        for (var key : method.argType.keySet()) {
+          String pType = method.argType.get(key);
+          if(key.contains("this")) continue;
+
+          type = "";
+          if (arguments != null) {
+            type = visit(arguments.expression(cnt));
+          }
+
+          if (pType.contains("Ref")) {
+            //ユーザーが与えた引数の型とコンストラクタが一致しない場合
+            if (!isSubtyped(type, pType.replace(method.abstLocs.get(locCnt), uAbstLocs.get(locCnt)))) {
+              System.out.println("Invalid argument and location");
+              return null;
+            }
+            locCnt++;
+          }
+          cnt++;
+        }
+      }
+
+      //コンストレイントの部分型チェック
+      if(!isSubConstraint(constraint, method.pre, method.abstLocs, uAbstLocs)){
+        System.out.println("Invalid constraint");
+        return null;
+      }
+
+      //コンストラクタの事後条件
+      var post = method.post;
+
+      //コンストレイント更新(update(C,C'[abst/real]))
+      for (String loc : post.keySet()) {
+        var c = new Constraint();
+
+        //クラスメイトとフィールドの型を記録
+        c.className = post.get(loc).className;
+
+        //抽象化された位置変数を使っているかチェック(コンストレイントのフィールドの型)
+        for (String key : post.get(loc).fieldType.keySet()) {
+          type = post.get(loc).fieldType.get(key);
+          if(type.contains("Ref")) {
+            //forall
+            for (int i = 0; i < method.abstLocs.size(); i++) {
+              if (type.substring(3).equals(method.abstLocs.get(i))) {
+                //ユーザーが定義した位置変数で具体化
+                type = "Ref"+type.substring(3).replace(method.abstLocs.get(i), uAbstLocs.get(i));
+              }
+            }
+            //exists
+            for (int i = 0; i < method.bindLocs.size(); i++) {
+              if (type.substring(3).equals(method.bindLocs.get(i))) {
+                //ユーザーが定義した位置変数で具体化
+                type = "Ref"+type.substring(3).replace(method.bindLocs.get(i), uBindLocs.get(i));
+              }
+            }
+          }
+          c.fieldType.put(key, type);
+        }
+
+        //抽象化された位置変数を使っているかチェック(コンストレイントの定義域)
+        //forall
+        for(int i=0; i<method.abstLocs.size(); i++){
+          if(loc.equals(method.abstLocs.get(i))){
+            //ユーザーが定義した位置変数で具体化
+            loc = uAbstLocs.get(i);
+          }
+        }
+        //exists
+        for(int i=0; i<method.bindLocs.size(); i++){
+          if(loc.equals(method.bindLocs.get(i))){
+            loc = uBindLocs.get(i);
+          }
+        }
+
+        constraint.put(loc, c);
+      }
+
+      //返り値型
+      String returnType = method.returnType;
+      if(returnType.contains("Ref")){
+        var loc = returnType.substring(3);
+        for(int i=0; i<method.abstLocs.size(); i++){
+           if(loc.equals(method.abstLocs.get(i))){
+             returnType = "Ref"+uAbstLocs.get(i);
+           }
+        }
+        for(int i=0; i<method.bindLocs.size(); i++){
+          if(loc.equals(method.bindLocs.get(i))){
+            returnType = "Ref"+uBindLocs.get(i);
           }
         }
       }
-
-      //コンストレイント更新
-      constr.peekFirst().replace("pt"+currentNewCnt, newConstr);
-      return "ptr(pt"+currentNewCnt+")";
+      return returnType;
     }
 
-    //メソッド呼び出しのとき
-    if(ctx.methodCall() != null){
-    }
-
-    //代入のとき
+    //変数への代入のとき
     if(ctx.bop != null && ctx.bop.getText().equals("=")){
       var right = ctx.expression(0);
       var left = ctx.expression(1);
 
-      String rType = visit(right);
       String lType = visit(left);
 
-      if(isSubtyped(lType, rType)){
-        //フィールドへの代入のとき
-        if(right.bop != null && right.bop.getText().equals(".")){
+      //フィールドへの代入のとき
+      if(right.bop != null && right.bop.getText().equals(".")){
 
-          String instance = right.getChild(0).getText();
-          var currentEnv = env.peekFirst();
-          String type = currentEnv.get(instance);
-
-          int l = rType.indexOf("(")+1;
-          int r = rType.indexOf(")");
-          String location = type.substring(l, r);
-          var currentConstr = constr.peekFirst().get(location);
-
-          //コンストレイントのフィールドを更新
-          String field = right.IDENTIFIER().getText();
-          currentConstr.cmap.replace(field, lType);
+        String instance = right.getChild(0).getText();
+        String location = null;
+        for (var cEnv:env) {
+          if(cEnv.containsKey(instance)){
+            location = cEnv.get(instance).substring(3);
+          }
         }
-      }else{
-        //左右の型が異なるためエラー
-        err.println(lType+" can not be converted to "+ rType);
-        return lType;
+
+        //オブジェクトがコンストレイントになかったら
+        if(constraint.get(location) == null){
+          err.println(location+" is not found");
+          return null;
+        }
+
+        //コンストレイントのフィールドを更新
+        String field = right.IDENTIFIER().getText();
+        constraint.get(location).fieldType.replace(field, lType);
       }
 
       return lType;
@@ -253,7 +451,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     if(val.equals("null")){
       return "NULL";
     } else if(val.contains("ptr")) {
-      return val;
+      return val.replace("ptr", "Ref");
     } else {
       return visitChildren(ctx);
     }
@@ -268,61 +466,92 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     return "bool";
   }
 
-  //部分型かどうか(t<:ti)
-  boolean isSubtyped(String t, String ti){
-    String cName = st.peekFirst();
-    if(!cName.equals("Main")){ return true; }
+  ArrayList<String> copyStringList(ArrayList<String> list){
+    var newList = new ArrayList<String>();
+    for (var item:list) {
+      newList.add(item);
+    }
+    return newList;
+  }
 
-    if(t.equals(ti)){ //基本型が一致
-      return true;
-    }else if(ti.contains("ptr") && t.equals("NULL")){ //NULL<:ptr
-      return true;
-    }else if(ti.contains("ptr") && t.contains("ptr")){ //ptr(t)<:ptr(ti)
-      String locT = t.substring(t.indexOf("(")+1, t.indexOf(")"));
-      String locTi = ti.substring(ti.indexOf("(")+1, ti.indexOf(")"));
-      var ct = constr.peekFirst().get(locT);
-      var cti = constr.peekFirst().get(locTi);
+  Constraint copyConstraint(Constraint c){
+    var newC = new Constraint();
+    newC.className = c.className;
+    for (var val:c.fieldType.keySet()) {
+      newC.fieldType.put(val, c.fieldType.get(val));
+    }
+    return newC;
+  }
 
-      //コンストレイントの広さをチェック
-      for(String id : cti.cmap.keySet()){
-        String l = ct.cmap.get(id);
-        String r = cti.cmap.get(id);
-        if(ct.cmap.get(id) == null && !isSubtyped(l, r)){ //深さ
-          return false;
-        }
-      }
+  HashMap<String, Constraint> copyConstraintMap(HashMap<String, Constraint> cMap){
+    var newMap = new HashMap<String, Constraint>();
+    for (var loc:cMap.keySet()) {
+      var c = copyConstraint(cMap.get(loc));
+      newMap.put(loc, c);
+    }
+    return newMap;
+  }
+
+  //部分型かどうか(ts<:t)
+  boolean isSubtyped(String ts, String t){
+    if(ts.equals(t)){ //型が一致
+      return true;
+    }else if(ts.equals("NULL") && t.contains("Ref")){ //NULL<:ptr
       return true;
     }
+
     return false;
   }
 
-  //型環境を出力
-  void printTypeEnv(){
-    out.println("  Type Environment:");
-    var it = env.iterator();
-    while(it.hasNext()){
-      var currentEnv = it.next();
-      for (String key : currentEnv.keySet()) {
-        out.println("    "+key+":"+currentEnv.get(key));
-      }
-    }
-  }
+  //Cs<:C[abstLoc/realLoc]
+  //位置変数がRefとかだと置換したときにバグる
+  boolean isSubConstraint(HashMap<String,Constraint> cs, HashMap<String,Constraint> c,
+                          ArrayList<String> absLoc, ArrayList<String> realLoc){
+    for (var loc : c.keySet()) {
 
-  //コンストレイントを出力
-  void printConstraint(){
-    out.println("  Constraint:");
-    var it = constr.iterator();
-    while(it.hasNext()){
-      var currentConstr = it.next();
-      for (String loc : currentConstr.keySet()) {
-        var c = currentConstr.get(loc);
-        out.println("    "+loc+" => ");
-        out.println("      c:"+c.className);
-        for (String val : c.cmap.keySet()) {
-          System.out.println("      "+val + " => " + c.cmap.get(val));
+      //cのロケーションを一時保存
+      String cLoc = loc;
+      //抽象化された位置変数を使っているかチェック
+      for(int i=0; i<absLoc.size(); i++){
+        if(loc.equals(absLoc.get(i))){
+          //ユーザーが定義した位置変数で具体化
+          loc = realLoc.get(i);
+        }
+      }
+
+      //cにあるオブジェクトがcsになかったら
+      if(!cs.containsKey(loc)){
+        return false;
+      }
+
+      //クラスが部分型関係になっているか
+      if(!cs.get(loc).className.equals(c.get(cLoc).className)){
+        var cls = Data.ct.get(cs.get(loc).className);
+        if(!cls.sClass.equals(c.get(loc).className)){
+          return false;
+        }
+      }
+
+      //フィールドが部分型になっているか
+      for (var val : c.get(cLoc).fieldType.keySet()) {
+        var ts = cs.get(loc) .fieldType.get(val);
+        var t = c.get(cLoc).fieldType.get(val);
+
+        //抽象化された位置変数を使っているかチェック
+        for(int i=0; i<absLoc.size(); i++){
+          if(t.contains(absLoc.get(i))){
+            //ユーザーが定義した位置変数で具体化
+            t = t.replace(absLoc.get(i), realLoc.get(i));
+          }
+        }
+
+        if(!isSubtyped(ts, t)){
+          return false;
         }
       }
     }
+
+    return true;
   }
 
 }
