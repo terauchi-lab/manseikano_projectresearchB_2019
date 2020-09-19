@@ -32,35 +32,27 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
     String cName = clsSt.peekFirst();
     Class c = ct.get(cName);
-
     c.cons = new Constructor();
 
-    var preCondition = ctx.condition().get(0);
-    var postCondition = ctx.condition().get(1);
-
-    //事前条件があれば生成
-    if(preCondition != null){
-      var abstLocs = ctx.condition().get(0).delta();
-      for (var loc: abstLocs.IDENTIFIER()) {
+    //事前条件があれば記録
+    if(ctx.pre != null && ctx.pre.delta() != null ){
+      for (var loc : ctx.pre.delta().IDENTIFIER()) {
         c.cons.abstLocs.add(loc.getText());
       }
-
       c.cons.pre = new HashMap<String,Constraint>();
       constraint = c.cons.pre;
-      visit(ctx.condition().get(0));
+      visit(ctx.pre);
       constraint = null;
     }
 
     //事後条件があれば生成
-    if(postCondition != null){
-      var bindLocs = ctx.condition().get(1).delta();
-      for (var loc: bindLocs.IDENTIFIER()) {
+    if(ctx.post != null){
+      for (var loc: ctx.post.delta().IDENTIFIER()) {
         c.cons.bindLocs.add(loc.getText());
       }
-
       c.cons.post = new HashMap<String,Constraint>();
       constraint = c.cons.post;
-      visit(ctx.condition().get(1));
+      visit(ctx.post);
       constraint = null;
     }
 
@@ -77,37 +69,36 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   @Override
   public String visitFormalParameter(JavaParser.FormalParameterContext ctx) {
     String id = ctx.variableDeclaratorId().getText();
-    var typeType = ctx.typeType();
 
-    if(typeType.refType() != null){
-      var type = typeType.refType().getText();
-      arg.put(id, type);
+    if(ctx.typeType().refType() != null){
+      arg.put(id, ctx.typeType().refType().getText());
     }else{
-      var type = typeType.primitiveType().getText();
-      arg.put(id, type);
+      if(ctx.typeType().classOrInterfaceType() != null){
+        arg.put(id, ctx.typeType().classOrInterfaceType().getText());
+      }else{
+        arg.put(id, ctx.typeType().primitiveType().getText());
+      }
     }
     return null;
   }
 
   @Override
   public String visitConstraint(JavaParser.ConstraintContext ctx) {
-    String location = ctx.IDENTIFIER().get(0).getText();
     Constraint c = new Constraint();
-    c.className = clsSt.peekFirst();
+    c.className = ctx.className.getText();
 
     //各変数の型をマップに追加
     for(int i=0; i<ctx.param().size(); i++){
       String id = ctx.param().get(i).IDENTIFIER().getText();
-      String type;
       if(ctx.param().get(i).refType() == null){
-        type = ctx.param().get(i).typeType().getText();
+        c.fieldType.put(id, ctx.param().get(i).typeType().getText());
       }else{
-        type = ctx.param().get(i).refType().getText();
+        c.fieldType.put(id, ctx.param().get(i).refType().getText());
       }
-      c.fieldType.put(id, type);
     }
 
     //コンストレイント更新
+    String location = ctx.IDENTIFIER().get(0).getText();
     constraint.put(location, c);
     return visitChildren(ctx);
   }
@@ -126,40 +117,32 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
     String id = ctx.IDENTIFIER().getText();
     String type;
-    var typeType = ctx.typeTypeOrVoid();
+    var typeType = ctx.typeTypeOrVoid().typeType();
 
     //返り値型を追加
-    if(typeType.VOID() != null){
-      type = typeType.getText();
-    }else if(typeType.typeType().refType() != null){
-      type = typeType.typeType().refType().getText();
+    if(ctx.typeTypeOrVoid().VOID() != null){
+      m.returnType = ctx.typeTypeOrVoid().getText();
+    }else if(typeType.refType() != null){
+      type = typeType.refType().getText();
     }else{
-      type = typeType.typeType().primitiveType().getText();
+      type = typeType.primitiveType().getText();
     }
-    m.returnType = type;
 
-    var preCondition = ctx.condition(0);
-    var postCondition = ctx.condition(1);
-
-    if(preCondition != null){
-      var abstLocs = ctx.condition().get(0).delta();
-      for (var loc: abstLocs.IDENTIFIER()) {
+    if(ctx.pre != null && ctx.pre.delta() != null){
+      for (var loc: ctx.pre.delta().IDENTIFIER()) {
         m.abstLocs.add(loc.getText());
       }
-
       constraint = m.pre;
-      visit(ctx.condition().get(0));
+      visit(ctx.pre);
       constraint = null;
     }
 
-    if(postCondition != null){
-      var bindLocs = ctx.condition().get(1).delta();
-      for (var loc: bindLocs.IDENTIFIER()) {
+    if(ctx.post != null && ctx.post.delta() != null){
+      for (var loc: ctx.condition().get(1).delta().IDENTIFIER()) {
         m.bindLocs.add(loc.getText());
       }
-
       constraint = m.post;
-      visit(ctx.condition().get(1));
+      visit(ctx.post);
       constraint = null;
     }
 

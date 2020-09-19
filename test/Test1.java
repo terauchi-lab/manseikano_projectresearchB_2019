@@ -1,4 +1,7 @@
-class A {}
+class A {
+  /*@ Ref p @*/ A(){}
+  /*@ [p; p->{c:A}] @*/
+}
 
 class B extends A {
   A x;
