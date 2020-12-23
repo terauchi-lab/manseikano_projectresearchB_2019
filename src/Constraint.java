@@ -2,6 +2,6 @@ import java.util.*;
 class Constraint {
   public String className;
   //field->Type
-  public HashMap<String,String> fieldType = new HashMap<String,String>();
+  public HashMap<String,String> fieldType = new HashMap<>();
 }
 

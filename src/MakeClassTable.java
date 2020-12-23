@@ -6,7 +6,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   //クラステーブル
   public HashMap<String, Class> ct = new HashMap<String, Class>();
   //クラス名一時保管
-  public Deque<String> clsSt = new ArrayDeque<String>();
+  public ArrayDeque<String> clsSt = new ArrayDeque<String>();
   //引数の型を一時保管
   public HashMap<String, String> arg = new HashMap<String, String>();
   //コンストレイント一時保管
@@ -16,12 +16,13 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
     var c = new Class();
-    ct.put(cName, c);
 
     //クラスを継承していたら親クラスを記録
     if(ctx.EXTENDS() != null){
       c.sClass = ctx.typeType().getText();
     }
+    ct.put(cName, c);
+
     clsSt.addFirst(cName);
     visitChildren(ctx);
     clsSt.removeFirst();
@@ -34,22 +35,34 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     Class c = ct.get(cName);
     c.cons = new Constructor();
 
-    //事前条件があれば記録
-    if(ctx.pre != null && ctx.pre.delta() != null ){
-      for (var loc : ctx.pre.delta().IDENTIFIER()) {
-        c.cons.abstLocs.add(loc.getText());
+    //事前条件があるとき
+    if(ctx.pre != null){
+      //全称量化子で束縛する位置を記録
+      for (var constraint : ctx.pre.constraints().constraint()) {
+        c.cons.abstLocs.add(constraint.IDENTIFIER(0).getText());
       }
+
+      //事前条件が変数に記録してvisit
       c.cons.pre = new HashMap<String,Constraint>();
       constraint = c.cons.pre;
       visit(ctx.pre);
       constraint = null;
     }
 
-    //事後条件があれば生成
+    //事後条件があるとき
     if(ctx.post != null){
-      for (var loc: ctx.post.delta().IDENTIFIER()) {
-        c.cons.bindLocs.add(loc.getText());
+      //存在量化子で束縛する位置を記録
+      for (var constraint : ctx.post.constraints().constraint()) {
+        var p = constraint.IDENTIFIER(0).getText();
+
+        //全称量化子で束縛されていないものを存在量化
+        if(c.cons.abstLocs.contains(p)){
+          continue;
+        } else {
+          c.cons.bindLocs.add(p);
+        }
       }
+
       c.cons.post = new HashMap<String,Constraint>();
       constraint = c.cons.post;
       visit(ctx.post);
@@ -127,19 +140,32 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
       m.returnType = typeType.primitiveType().getText();
     }
 
-    if(ctx.pre != null && ctx.pre.delta() != null){
-      for (var loc: ctx.pre.delta().IDENTIFIER()) {
-        m.abstLocs.add(loc.getText());
+    //事前条件があるとき
+    if(ctx.pre != null){
+      //全称量化子で束縛する位置を記録
+      for (var constraint : ctx.pre.constraints().constraint()) {
+        m.abstLocs.add(constraint.IDENTIFIER(0).getText());
       }
       constraint = m.pre;
       visit(ctx.pre);
       constraint = null;
     }
 
-    if(ctx.post != null && ctx.post.delta() != null){
-      for (var loc: ctx.post.delta().IDENTIFIER()) {
-        m.bindLocs.add(loc.getText());
+    //事後条件があるとき
+    if(ctx.post != null){
+      //存在量化子で束縛する位置を記録
+      for (var constraint : ctx.post.constraints().constraint()) {
+        m.bindLocs.add(constraint.IDENTIFIER(0).getText());
+        var p = constraint.IDENTIFIER(0).getText();
+
+        //全称量化子で束縛されていないものを存在量化
+        if(m.abstLocs.contains(p)){
+          continue;
+        } else {
+          m.bindLocs.add(p);
+        }
       }
+
       constraint = m.post;
       visit(ctx.post);
       constraint = null;

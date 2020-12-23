@@ -604,7 +604,7 @@ refType
     ;
 
 condition
-    : LCOMMENT '[' delta? (';')? constraints? ']' RCOMMENT
+    : LCOMMENT '[' constraints ']' RCOMMENT
     ;
 
 delta
