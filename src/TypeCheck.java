@@ -8,10 +8,6 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
   public Deque<HashMap<String,String>> env = new ArrayDeque<>();
   //コンストレイント
   public HashMap<String,Constraint> constraint = new HashMap<>();
-  //Delta_forall
-  public ArrayList<String> abstLocs = new ArrayList<>();
-  //Delta_exists
-  public ArrayList<String> bindLocs = new ArrayList<>();
 
   @Override
   public String visitBlock(JavaParser.BlockContext ctx) {
@@ -70,13 +66,11 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     return null;
   }
 
+  //TODO p_thisの制約
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
     String cName = clsSt.peekFirst();
     var cons = Data.ct.get(cName).cons;
-    abstLocs = copyStringList(cons.abstLocs);
-    bindLocs = copyStringList(cons.bindLocs);
-    bindLocs.add("pt");
     constraint = copyConstraintMap(cons.pre);
 
     var newEnv = cons.argType;
@@ -85,8 +79,6 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     visitChildren(ctx);
 
-    abstLocs = null;
-    bindLocs = null;
     constraint = null;
     env.removeFirst();
     return null;
@@ -97,8 +89,6 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     String cName = clsSt.peekFirst();
     var mName = ctx.IDENTIFIER().getText();
     var m = Data.ct.get(cName).method.get(mName);
-    abstLocs = copyStringList(m.abstLocs);
-    bindLocs = copyStringList(m.bindLocs);
     constraint = copyConstraintMap(m.pre);
 
     var newEnv = m.argType;
@@ -109,8 +99,6 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     visitChildren(ctx);
 
-    abstLocs = null;
-    bindLocs = null;
     constraint = null;
     env.removeFirst();
     return null;
@@ -172,8 +160,6 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
         for (var loc : creator.exists.IDENTIFIER()) {
           uBindLocs.add(loc.getText());
         }
-        //delta_existsに位置変数を追加
-        bindLocs.addAll(uBindLocs);
       }
 
       int cnt = 0;
@@ -307,8 +293,6 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
         for (var loc : ctx.methodCall().exists.IDENTIFIER()) {
           uBindLocs.add(loc.getText());
         }
-        //delta_existsに位置変数を追加
-        bindLocs.addAll(uBindLocs);
       }
 
       int cnt = 0;
