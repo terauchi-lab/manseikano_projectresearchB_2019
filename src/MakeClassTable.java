@@ -1,16 +1,14 @@
 import java.util.*;
-import static java.lang.System.*;
-import org.antlr.v4.runtime.*;
 
 public class MakeClassTable extends JavaParserBaseVisitor<String> {
   //クラステーブル
-  public HashMap<String, Class> ct = new HashMap<String, Class>();
+  public HashMap<String, Class> clsTable = new HashMap<String, Class>();
   //クラス名一時保管
-  public ArrayDeque<String> clsSt = new ArrayDeque<String>();
+  public ArrayDeque<String> cNameStack = new ArrayDeque<String>();
   //引数の型を一時保管
-  public HashMap<String, String> arg = new HashMap<String, String>();
+  public HashMap<String, String> tmpArgTypes = new HashMap<String, String>();
   //コンストレイント一時保管
-  public HashMap<String,Constraint> constraint = new HashMap<String,Constraint>();
+  public HashMap<String, ObjectType> tmpConstraint = new HashMap<String, ObjectType>();
 
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
@@ -19,20 +17,20 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
     //クラスを継承していたら親クラスを記録
     if(ctx.EXTENDS() != null){
-      c.sClass = ctx.typeType().getText();
+      c.sClassName = ctx.typeType().getText();
     }
-    ct.put(cName, c);
+    clsTable.put(cName, c);
 
-    clsSt.addFirst(cName);
+    cNameStack.addFirst(cName);
     visitChildren(ctx);
-    clsSt.removeFirst();
+    cNameStack.removeFirst();
     return null;
   }
 
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
-    String cName = clsSt.peekFirst();
-    Class c = ct.get(cName);
+    String cName = cNameStack.peekFirst();
+    Class c = clsTable.get(cName);
     c.cons = new Constructor();
 
     //事前条件があるとき
@@ -43,10 +41,10 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
       }
 
       //事前条件が変数に記録してvisit
-      c.cons.pre = new HashMap<String,Constraint>();
-      constraint = c.cons.pre;
+      c.cons.pre = new HashMap<String, ObjectType>();
+      tmpConstraint = c.cons.pre;
       visit(ctx.pre);
-      constraint = null;
+      tmpConstraint = null;
     }
 
     //事後条件があるとき
@@ -63,19 +61,19 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
         }
       }
 
-      c.cons.post = new HashMap<String,Constraint>();
-      constraint = c.cons.post;
+      c.cons.post = new HashMap<String, ObjectType>();
+      tmpConstraint = c.cons.post;
       visit(ctx.post);
-      constraint = null;
+      tmpConstraint = null;
     }
 
     //返り値型を記録
     var returnType = ctx.refType().getText();
     c.cons.returnType = returnType;
 
-    arg = c.cons.argType;
+    tmpArgTypes = c.cons.argTypes;
     visit(ctx.formalParameters());
-    arg = null;
+    tmpArgTypes = null;
     return null;
   }
 
@@ -84,12 +82,12 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
     String id = ctx.variableDeclaratorId().getText();
 
     if(ctx.typeType().refType() != null){
-      arg.put(id, ctx.typeType().refType().getText());
+      tmpArgTypes.put(id, ctx.typeType().refType().getText());
     }else{
       if(ctx.typeType().classOrInterfaceType() != null){
-        arg.put(id, ctx.typeType().classOrInterfaceType().getText());
+        tmpArgTypes.put(id, ctx.typeType().classOrInterfaceType().getText());
       }else{
-        arg.put(id, ctx.typeType().primitiveType().getText());
+        tmpArgTypes.put(id, ctx.typeType().primitiveType().getText());
       }
     }
     return null;
@@ -97,33 +95,33 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
 
   @Override
   public String visitConstraint(JavaParser.ConstraintContext ctx) {
-    Constraint c = new Constraint();
+    ObjectType c = new ObjectType();
     c.className = ctx.className.getText();
 
     //各変数の型をマップに追加
     for(int i=0; i<ctx.param().size(); i++){
       String id = ctx.param().get(i).IDENTIFIER().getText();
       if(ctx.param().get(i).refType() == null){
-        c.fieldType.put(id, ctx.param().get(i).typeType().getText());
+        c.fieldTypes.put(id, ctx.param().get(i).typeType().getText());
       }else{
-        c.fieldType.put(id, ctx.param().get(i).refType().getText());
+        c.fieldTypes.put(id, ctx.param().get(i).refType().getText());
       }
     }
 
     //コンストレイント更新
     String location = ctx.IDENTIFIER().get(0).getText();
-    constraint.put(location, c);
+    tmpConstraint.put(location, c);
     return visitChildren(ctx);
   }
 
   @Override
   public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
-    String cName = clsSt.peekFirst();
-    Class c = ct.get(cName);
+    String cName = cNameStack.peekFirst();
+    Class c = clsTable.get(cName);
 
     //メソッドがなければ生成
-    if(c.method == null){
-      c.method = new HashMap<String, Method>();
+    if(c.methods == null){
+      c.methods = new HashMap<String, Method>();
     }
 
     Method m = new Method();
@@ -146,9 +144,9 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
       for (var constraint : ctx.pre.constraints().constraint()) {
         m.abstLocs.add(constraint.IDENTIFIER(0).getText());
       }
-      constraint = m.pre;
+      tmpConstraint = m.pre;
       visit(ctx.pre);
-      constraint = null;
+      tmpConstraint = null;
     }
 
     //事後条件があるとき
@@ -166,17 +164,17 @@ public class MakeClassTable extends JavaParserBaseVisitor<String> {
         }
       }
 
-      constraint = m.post;
+      tmpConstraint = m.post;
       visit(ctx.post);
-      constraint = null;
+      tmpConstraint = null;
     }
 
-    arg = m.argType;
+    tmpArgTypes = m.argTypes;
     visit(ctx.formalParameters());
-    arg = null;
+    tmpArgTypes = null;
 
     //辞書にメソッド追加
-    c.method.put(id, m);
+    c.methods.put(id, m);
     return null;
   }
 

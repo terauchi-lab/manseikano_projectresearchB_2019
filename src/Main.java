@@ -1,10 +1,8 @@
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import static java.lang.System.*;
-import static java.lang.Math.*;
+
 import java.util.*;
-import java.util.Arrays;
-import org.antlr.v4.gui.TreeViewer;
 
 public class Main {
   public static void main(String[] args) throws Exception {
@@ -22,7 +20,7 @@ public class Main {
     makeClassTable.visit(tree);
 
     //クラステーブルを保管
-    Data.ct = makeClassTable.ct;
+    Data.clsTable = makeClassTable.clsTable;
 
     //デバッグ
     //printClassTable(Data.ct);
@@ -47,28 +45,28 @@ public class Main {
       Constructor cons = ct.get(key).cons;
       out.println("  Params");
       if(cons != null){
-        for (String id : cons.argType.keySet()) {
-          System.out.println("    "+id + " => " + cons.argType.get(id));
+        for (String id : cons.argTypes.keySet()) {
+          System.out.println("    "+id + " => " + cons.argTypes.get(id));
         }
 
         out.println("  Pre Condition");
         if(cons.pre != null){
           for (String id : cons.pre.keySet()) {
-            Constraint constraint = cons.pre.get(id);
-            out.println("    "+constraint.className+ " => ");
-            for (String val : constraint.fieldType.keySet()) {
-              System.out.println("      "+val + " => " + constraint.fieldType.get(val));
+            ObjectType objectType = cons.pre.get(id);
+            out.println("    "+ objectType.className+ " => ");
+            for (String val : objectType.fieldTypes.keySet()) {
+              System.out.println("      "+val + " => " + objectType.fieldTypes.get(val));
             }
           }
         }
         out.println("  Post Condition");
         if(cons.post != null){
           for (String id : cons.post.keySet()) {
-            Constraint constraint = cons.post.get(id);
+            ObjectType objectType = cons.post.get(id);
             out.println("    "+id+ " => ");
-            out.println("      "+"c : "+constraint.className);
-            for (String val : constraint.fieldType.keySet()) {
-              System.out.println("      "+val + " => " + constraint.fieldType.get(val));
+            out.println("      "+"c : "+ objectType.className);
+            for (String val : objectType.fieldTypes.keySet()) {
+              System.out.println("      "+val + " => " + objectType.fieldTypes.get(val));
             }
           }
         }

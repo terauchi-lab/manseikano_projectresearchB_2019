@@ -612,10 +612,10 @@ delta
     ;
 
 constraints
-    : constraint (',' constraint)*
+    : objectType (',' objectType)*
     ;
 
-constraint
+objectType
     : IDENTIFIER '->' '{' IDENTIFIER ':' className=IDENTIFIER (',' param )* '}'
     ;
 

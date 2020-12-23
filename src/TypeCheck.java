@@ -3,27 +3,27 @@ import static java.lang.System.*;
 
 public class TypeCheck extends JavaParserBaseVisitor<String> {
   //クラス名保管
-  public Deque<String> clsSt = new ArrayDeque<>();
+  public Deque<String> clsNameStack = new ArrayDeque<>();
   //型環境
-  public Deque<HashMap<String,String>> env = new ArrayDeque<>();
+  public Deque<HashMap<String,String>> typeEnvStack = new ArrayDeque<>();
   //コンストレイント
-  public HashMap<String,Constraint> constraint = new HashMap<>();
+  public HashMap<String, ObjectType> tmpConstraint = new HashMap<>();
 
   @Override
   public String visitBlock(JavaParser.BlockContext ctx) {
     //ブロックに入ったら型環境をスタックに追加
     var newEnv = new HashMap<String,String>();
-    env.addFirst(newEnv);
+    typeEnvStack.addFirst(newEnv);
 
     visitChildren(ctx);
 
     //ブロックを抜けたら最新の型環境をスタックから削除
-    env.removeFirst();
+    typeEnvStack.removeFirst();
     return null;
   }
 
   @Override public String visitBlockStatement(JavaParser.BlockStatementContext ctx) {
-    String cName = clsSt.peekFirst();
+    String cName = clsNameStack.peekFirst();
 
     if(cName.contains("Test")){
       visitChildren(ctx);
@@ -40,7 +40,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     }else{
       type = ctx.typeType().getText();
     }
-    var currentEnv = env.peekFirst();
+    var typeEnv = typeEnvStack.peekFirst();
 
     //変数宣言時に型環境に追加
     var decList = ctx.variableDeclarators().variableDeclarator();
@@ -50,7 +50,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
         type = visit(dec.variableInitializer());
       }
       String id = dec.variableDeclaratorId().getText();
-      currentEnv.put(id, type);
+      typeEnv.put(id, type);
     }
 
     return type;
@@ -60,47 +60,47 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
   @Override
   public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
-    clsSt.addFirst(cName);
+    clsNameStack.addFirst(cName);
     visitChildren(ctx);
-    clsSt.removeFirst();
+    clsNameStack.removeFirst();
     return null;
   }
 
   //TODO p_thisの制約
   @Override
   public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
-    String cName = clsSt.peekFirst();
-    var cons = Data.ct.get(cName).cons;
-    constraint = copyConstraintMap(cons.pre);
+    String cName = clsNameStack.peekFirst();
+    var cons = Data.clsTable.get(cName).cons;
+    tmpConstraint = copyConstraintMap(cons.pre);
 
-    var newEnv = cons.argType;
-    env.addFirst(newEnv);
-    env.peekFirst().put("this", "Refpt");
+    var newEnv = cons.argTypes;
+    typeEnvStack.addFirst(newEnv);
+    typeEnvStack.peekFirst().put("this", "Refpt");
 
     visitChildren(ctx);
 
-    constraint = null;
-    env.removeFirst();
+    tmpConstraint = null;
+    typeEnvStack.removeFirst();
     return null;
   }
 
   @Override
   public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
-    String cName = clsSt.peekFirst();
+    String cName = clsNameStack.peekFirst();
     var mName = ctx.IDENTIFIER().getText();
-    var m = Data.ct.get(cName).method.get(mName);
-    constraint = copyConstraintMap(m.pre);
+    var m = Data.clsTable.get(cName).methods.get(mName);
+    tmpConstraint = copyConstraintMap(m.pre);
 
-    var newEnv = m.argType;
-    env.addFirst(newEnv);
-    if(!Data.ct.get(cName).method.containsKey("main")){
-      env.peekFirst().put("this", "Refpt");
+    var newEnv = m.argTypes;
+    typeEnvStack.addFirst(newEnv);
+    if(!Data.clsTable.get(cName).methods.containsKey("main")){
+      typeEnvStack.peekFirst().put("this", "Refpt");
     }
 
     visitChildren(ctx);
 
-    constraint = null;
-    env.removeFirst();
+    tmpConstraint = null;
+    typeEnvStack.removeFirst();
     return null;
   }
 
@@ -109,7 +109,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
     //基本型の値のとき
     if(ctx.primary() != null){
-      for (var item : env ) {
+      for (var item : typeEnvStack) {
         if(item.containsKey(ctx.primary().getText())){
           return item.get(ctx.primary().getText());
         }
@@ -122,11 +122,11 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       String instance = ctx.getChild(0).getText();
       String field = ctx.IDENTIFIER().getText();
 
-      var currentEnv = env.peekFirst();
+      var currentEnv = typeEnvStack.peekFirst();
       String type = currentEnv.get(instance);
       String location = type.substring(3);
 
-      var obj = constraint.get(location);
+      var obj = tmpConstraint.get(location);
 
       //objがコンストレイントになかったら
       if(obj == null){
@@ -134,7 +134,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
         return null;
       }
 
-      return obj.fieldType.get(field);
+      return obj.fieldTypes.get(field);
     }
 
     //newのとき
@@ -144,7 +144,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       String cName = ctx.creator().createdName().getText();
 
       //クラステーブルからコンストラクタ取得
-      var cons = Data.ct.get(cName).cons;
+      var cons = Data.clsTable.get(cName).cons;
 
       //ユーザーによって与えられた位置を記録
       var uAbstLocs = new ArrayList<String>();
@@ -167,9 +167,9 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
       //TODO 型環境は順序もほしいのでhashmapだとだめかも
       //引数が仮引数の型で型付けできるかをチェック
-      if (1 < cons.argType.size()){
-        for (var key : cons.argType.keySet()) {
-          String pType = cons.argType.get(key);
+      if (1 < cons.argTypes.size()){
+        for (var key : cons.argTypes.keySet()) {
+          String pType = cons.argTypes.get(key);
           if(key.contains("this")) continue;
 
           String type = "";
@@ -190,7 +190,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       }
 
       //コンストレイントの部分型チェック
-      if(!isSubConstraint(constraint, cons.pre, cons.abstLocs, uAbstLocs)){
+      if(!isSubConstraint(tmpConstraint, cons.pre, cons.abstLocs, uAbstLocs)){
         System.out.println("Invalid constraint");
         return null;
       }
@@ -200,14 +200,14 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
       //コンストレイント更新(update(C,C'[abst/real]))
       for (String loc : post.keySet()) {
-        var c = new Constraint();
+        var c = new ObjectType();
 
         //クラスメイトとフィールドの型を記録
         c.className = post.get(loc).className;
 
         //抽象化された位置変数を使っているかチェック(コンストレイントのフィールドの型)
-        for (String key : post.get(loc).fieldType.keySet()) {
-          String type = post.get(loc).fieldType.get(key);
+        for (String key : post.get(loc).fieldTypes.keySet()) {
+          String type = post.get(loc).fieldTypes.get(key);
           if(type.contains("Ref")) {
             //forall
             for (int i = 0; i < cons.abstLocs.size(); i++) {
@@ -224,7 +224,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
               }
             }
           }
-          c.fieldType.put(key, type);
+          c.fieldTypes.put(key, type);
         }
 
         //抽象化された位置変数を使っているかチェック(コンストレイントの定義域)
@@ -242,7 +242,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
           }
         }
 
-        constraint.put(loc, c);
+        tmpConstraint.put(loc, c);
       }
 
       return "Ref"+uBindLocs.get(0);
@@ -254,7 +254,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       String cName = "";
       String type = "";
 
-      for (var cEnv : env) {
+      for (var cEnv : typeEnvStack) {
         if(cEnv.containsKey(caller)){
           type = cEnv.get(caller);
           //インスタンス変数が参照型じゃなかったら
@@ -266,18 +266,18 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
         //ポインタが指す先が制約になかったら
         var point = type.substring(3);
-        if(!constraint.containsKey(point)){
+        if(!tmpConstraint.containsKey(point)){
           System.out.println(point+" isn't in a constraint");
           return null;
         }
-        cName = constraint.get(point).className;
+        cName = tmpConstraint.get(point).className;
       }
 
       var arguments = ctx.methodCall().expressionList();
       String mName = ctx.methodCall().IDENTIFIER().getText();
 
       //クラステーブルからメソッド取得
-      var method= Data.ct.get(cName).method.get(mName);
+      var method= Data.clsTable.get(cName).methods.get(mName);
 
       //ユーザーによって与えられた位置を記録
       var uAbstLocs = new ArrayList<String>();
@@ -299,9 +299,9 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       int locCnt = 0;
 
       //引数が仮引数の型で型付けできるかをチェック
-      if (1 < method.argType.size()){
-        for (var key : method.argType.keySet()) {
-          String pType = method.argType.get(key);
+      if (1 < method.argTypes.size()){
+        for (var key : method.argTypes.keySet()) {
+          String pType = method.argTypes.get(key);
           if(key.contains("this")) continue;
 
           type = "";
@@ -322,7 +322,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
       }
 
       //コンストレイントの部分型チェック
-      if(!isSubConstraint(constraint, method.pre, method.abstLocs, uAbstLocs)){
+      if(!isSubConstraint(tmpConstraint, method.pre, method.abstLocs, uAbstLocs)){
         System.out.println("Invalid constraint");
         return null;
       }
@@ -332,14 +332,14 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
       //コンストレイント更新(update(C,C'[abst/real]))
       for (String loc : post.keySet()) {
-        var c = new Constraint();
+        var c = new ObjectType();
 
         //クラスメイトとフィールドの型を記録
         c.className = post.get(loc).className;
 
         //抽象化された位置変数を使っているかチェック(コンストレイントのフィールドの型)
-        for (String key : post.get(loc).fieldType.keySet()) {
-          type = post.get(loc).fieldType.get(key);
+        for (String key : post.get(loc).fieldTypes.keySet()) {
+          type = post.get(loc).fieldTypes.get(key);
           if(type.contains("Ref")) {
             //forall
             for (int i = 0; i < method.abstLocs.size(); i++) {
@@ -356,7 +356,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
               }
             }
           }
-          c.fieldType.put(key, type);
+          c.fieldTypes.put(key, type);
         }
 
         //抽象化された位置変数を使っているかチェック(コンストレイントの定義域)
@@ -374,7 +374,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
           }
         }
 
-        constraint.put(loc, c);
+        tmpConstraint.put(loc, c);
       }
 
       //返り値型
@@ -407,21 +407,21 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
         String instance = right.getChild(0).getText();
         String location = null;
-        for (var cEnv:env) {
+        for (var cEnv: typeEnvStack) {
           if(cEnv.containsKey(instance)){
             location = cEnv.get(instance).substring(3);
           }
         }
 
         //オブジェクトがコンストレイントになかったら
-        if(constraint.get(location) == null){
+        if(tmpConstraint.get(location) == null){
           err.println(location+" is not found");
           return null;
         }
 
         //コンストレイントのフィールドを更新
         String field = right.IDENTIFIER().getText();
-        constraint.get(location).fieldType.replace(field, lType);
+        tmpConstraint.get(location).fieldTypes.replace(field, lType);
       }
 
       return lType;
@@ -458,17 +458,17 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
     return newList;
   }
 
-  Constraint copyConstraint(Constraint c){
-    var newC = new Constraint();
+  ObjectType copyConstraint(ObjectType c){
+    var newC = new ObjectType();
     newC.className = c.className;
-    for (var val:c.fieldType.keySet()) {
-      newC.fieldType.put(val, c.fieldType.get(val));
+    for (var val:c.fieldTypes.keySet()) {
+      newC.fieldTypes.put(val, c.fieldTypes.get(val));
     }
     return newC;
   }
 
-  HashMap<String, Constraint> copyConstraintMap(HashMap<String, Constraint> cMap){
-    var newMap = new HashMap<String, Constraint>();
+  HashMap<String, ObjectType> copyConstraintMap(HashMap<String, ObjectType> cMap){
+    var newMap = new HashMap<String, ObjectType>();
     for (var loc:cMap.keySet()) {
       var c = copyConstraint(cMap.get(loc));
       newMap.put(loc, c);
@@ -489,7 +489,7 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
   //Cs<:C[abstLoc/realLoc]
   //位置変数がRefとかだと置換したときにバグる
-  boolean isSubConstraint(HashMap<String,Constraint> cs, HashMap<String,Constraint> c,
+  boolean isSubConstraint(HashMap<String, ObjectType> cs, HashMap<String, ObjectType> c,
                           ArrayList<String> absLoc, ArrayList<String> realLoc){
     for (var loc : c.keySet()) {
 
@@ -510,16 +510,16 @@ public class TypeCheck extends JavaParserBaseVisitor<String> {
 
       //クラスが部分型関係になっているか
       if(!cs.get(loc).className.equals(c.get(cLoc).className)){
-        var cls = Data.ct.get(cs.get(loc).className);
-        if(!cls.sClass.equals(c.get(loc).className)){
+        var cls = Data.clsTable.get(cs.get(loc).className);
+        if(!cls.sClassName.equals(c.get(loc).className)){
           return false;
         }
       }
 
       //フィールドが部分型になっているか
-      for (var val : c.get(cLoc).fieldType.keySet()) {
-        var ts = cs.get(loc) .fieldType.get(val);
-        var t = c.get(cLoc).fieldType.get(val);
+      for (var val : c.get(cLoc).fieldTypes.keySet()) {
+        var ts = cs.get(loc) .fieldTypes.get(val);
+        var t = c.get(cLoc).fieldTypes.get(val);
 
         //抽象化された位置変数を使っているかチェック
         for(int i=0; i<absLoc.size(); i++){
