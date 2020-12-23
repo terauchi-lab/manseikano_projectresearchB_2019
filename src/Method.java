@@ -6,11 +6,11 @@ class Method {
   public ArrayList<String> bindLocs = new ArrayList<>(); //Delta_exists
 
   //Argument->Type
-  public LinkedHashMap<String,String> argType = new LinkedHashMap<>();
+  public LinkedHashMap<String,String> argTypes = new LinkedHashMap<>();
 
-  //PreCondition
-  public HashMap<String,Constraint> pre = new HashMap<>();
+  //PreConstraint
+  public HashMap<String, ObjectType> pre = new HashMap<>();
 
-  //PostCcondition
-  public HashMap<String,Constraint> post = new HashMap<>();
+  //PostConstraint
+  public HashMap<String, ObjectType> post = new HashMap<>();
 }
