@@ -1,156 +1,173 @@
 import java.util.*;
-import static java.lang.System.*;
-import org.antlr.v4.runtime.*;
 
-public class MakeClassTable extends JavaParserBaseVisitor<String> {
+public class MakeClassTable extends JavaParserBaseVisitor<IType> {
   //クラステーブル
-  public HashMap<String, Class> ct = new HashMap<String, Class>();
+  public HashMap<String, Class> clsTable = new HashMap<>();
   //クラス名一時保管
-  public Deque<String> clsSt = new ArrayDeque<String>();
+  public ArrayDeque<String> cNameStack = new ArrayDeque<>();
   //引数の型を一時保管
-  public HashMap<String, String> arg = new HashMap<String, String>();
+  public HashMap<String, IType> tmpArgTypes = new HashMap<>();
   //コンストレイント一時保管
-  public HashMap<String,Constraint> constraint = new HashMap<String,Constraint>();
+  public HashMap<String, ObjectType> tmpConstraint = new HashMap<>();
+
+  //事前制約とforallをクラステーブルに追加
+  void addPreConstraint(JavaParser.ConditionContext ctx, HashMap<String, ObjectType> constraint, ArrayList<String> abstLocs){
+    //事前条件があるとき
+    if(ctx != null){
+      //全称量化子で束縛する位置を記録
+      for (var constraintCtx : ctx.constraints().constraint()) {
+        abstLocs.add(constraintCtx.IDENTIFIER(0).getText());
+      }
+      tmpConstraint = constraint;
+      //制約にvisit
+      visit(ctx);
+      tmpConstraint = null;
+    }
+  }
+
+  //事後制約とexistをクラステーブルに追加
+  void addPostConstraint(JavaParser.ConditionContext ctx, HashMap<String, ObjectType> constraint,
+                         ArrayList<String> abstLocs, ArrayList<String> bindLocs){
+    //事後条件があるとき
+    if(ctx != null){
+      //存在量化子で束縛する位置を記録
+      for (var constraintCtx : ctx.constraints().constraint()) {
+        var loc = constraintCtx.IDENTIFIER(0).getText();
+
+        //全称量化子で束縛されていないものを存在量化
+        if(!abstLocs.contains(loc)){
+          bindLocs.add(loc);
+        }
+      }
+
+      tmpConstraint = constraint;
+      visit(ctx);
+      tmpConstraint = null;
+    }
+  }
 
   @Override
-  public String visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
+  public IType visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
     String cName = ctx.IDENTIFIER().getText();
-    var c = new Class();
-    ct.put(cName, c);
+    var cls = new Class();
 
     //クラスを継承していたら親クラスを記録
-    if(ctx.EXTENDS() != null){
-      c.sClass = ctx.typeType().getText();
+    if(ctx.EXTENDS() == null){
+      cls.sClassName = "Object";
+    }else{
+      cls.sClassName = ctx.typeType().getText();
     }
-    clsSt.addFirst(cName);
+    clsTable.put(cName, cls);
+
+    cNameStack.addFirst(cName);
     visitChildren(ctx);
-    clsSt.removeFirst();
+    cNameStack.removeFirst();
     return null;
   }
 
   @Override
-  public String visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
-    String cName = clsSt.peekFirst();
-    Class c = ct.get(cName);
-    c.cons = new Constructor();
+  public IType visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
+    String cName = cNameStack.peekFirst();
+    Class cls = clsTable.get(cName);
+    cls.cons = new Constructor();
 
-    //事前条件があれば記録
-    if(ctx.pre != null && ctx.pre.delta() != null ){
-      for (var loc : ctx.pre.delta().IDENTIFIER()) {
-        c.cons.abstLocs.add(loc.getText());
-      }
-      c.cons.pre = new HashMap<String,Constraint>();
-      constraint = c.cons.pre;
-      visit(ctx.pre);
-      constraint = null;
-    }
-
-    //事後条件があれば生成
-    if(ctx.post != null){
-      for (var loc: ctx.post.delta().IDENTIFIER()) {
-        c.cons.bindLocs.add(loc.getText());
-      }
-      c.cons.post = new HashMap<String,Constraint>();
-      constraint = c.cons.post;
-      visit(ctx.post);
-      constraint = null;
-    }
+    //制約の追加
+    addPreConstraint(ctx.pre, cls.cons.pre, cls.cons.abstLocs);
+    addPostConstraint(ctx.post, cls.cons.post, cls.cons.abstLocs, cls.cons.bindLocs);
 
     //返り値型を記録
-    var returnType = ctx.refType().getText();
-    c.cons.returnType = returnType;
+    if(ctx.refType() != null){
+      var loc = ctx.refType().IDENTIFIER().getText();
+      cls.cons.returnType = new RefType(loc);
+    }
 
-    arg = c.cons.argType;
+    tmpArgTypes = cls.cons.argTypes;
     visit(ctx.formalParameters());
-    arg = null;
+    tmpArgTypes = null;
     return null;
   }
 
   @Override
-  public String visitFormalParameter(JavaParser.FormalParameterContext ctx) {
+  public IType visitFormalParameter(JavaParser.FormalParameterContext ctx) {
     String id = ctx.variableDeclaratorId().getText();
 
     if(ctx.typeType().refType() != null){
-      arg.put(id, ctx.typeType().refType().getText());
+      var loc = ctx.typeType().refType().IDENTIFIER().getText();
+      tmpArgTypes.put(id, new RefType(loc));
     }else{
       if(ctx.typeType().classOrInterfaceType() != null){
-        arg.put(id, ctx.typeType().classOrInterfaceType().getText());
+        tmpArgTypes.put(id, new NullType());
       }else{
-        arg.put(id, ctx.typeType().primitiveType().getText());
+        var type = PrimitiveType.getType(ctx.typeType().primitiveType().getText());
+        tmpArgTypes.put(id, type);
       }
     }
     return null;
   }
 
   @Override
-  public String visitConstraint(JavaParser.ConstraintContext ctx) {
-    Constraint c = new Constraint();
-    c.className = ctx.className.getText();
+  public IType visitConstraint(JavaParser.ConstraintContext ctx) {
+    ObjectType objType = new ObjectType();
+    objType.className = ctx.className.getText();
 
     //各変数の型をマップに追加
     for(int i=0; i<ctx.param().size(); i++){
-      String id = ctx.param().get(i).IDENTIFIER().getText();
-      if(ctx.param().get(i).refType() == null){
-        c.fieldType.put(id, ctx.param().get(i).typeType().getText());
-      }else{
-        c.fieldType.put(id, ctx.param().get(i).refType().getText());
+      String field = ctx.param().get(i).IDENTIFIER().getText();
+      if(ctx.param().get(i).refType() != null){
+        var loc = ctx.param().get(i).refType().IDENTIFIER().getText();
+        objType.fieldTypes.put(field, new RefType(loc));
+      }else {
+          if(ctx.param().get(i).typeType().primitiveType() != null){
+            var type = PrimitiveType.getType(ctx.param().get(i).typeType().primitiveType().getText());
+            objType.fieldTypes.put(field, type);
+          }else{
+            objType.fieldTypes.put(field, new NullType());
+          }
       }
     }
 
     //コンストレイント更新
     String location = ctx.IDENTIFIER().get(0).getText();
-    constraint.put(location, c);
+    tmpConstraint.put(location, objType);
     return visitChildren(ctx);
   }
 
   @Override
-  public String visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
-    String cName = clsSt.peekFirst();
-    Class c = ct.get(cName);
+  public IType visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
+    String cName = cNameStack.peekFirst();
+    Class cls = clsTable.get(cName);
 
     //メソッドがなければ生成
-    if(c.method == null){
-      c.method = new HashMap<String, Method>();
+    if(cls.methods == null){
+      cls.methods = new HashMap<>();
     }
 
-    Method m = new Method();
+    Method method = new Method();
 
     String id = ctx.IDENTIFIER().getText();
     var typeType = ctx.typeTypeOrVoid().typeType();
 
     //返り値型を追加
     if(ctx.typeTypeOrVoid().VOID() != null){
-      m.returnType = ctx.typeTypeOrVoid().getText();
+      method.returnType = new NullType();
     }else if(typeType.refType() != null){
-      m.returnType = typeType.refType().getText();
+      var loc = typeType.refType().IDENTIFIER().getText();
+      method.returnType = new RefType(loc);
     }else{
-      m.returnType = typeType.primitiveType().getText();
+      method.returnType = PrimitiveType.getType(typeType.primitiveType().getText());
     }
 
-    if(ctx.pre != null && ctx.pre.delta() != null){
-      for (var loc: ctx.pre.delta().IDENTIFIER()) {
-        m.abstLocs.add(loc.getText());
-      }
-      constraint = m.pre;
-      visit(ctx.pre);
-      constraint = null;
-    }
+    //制約の追加
+    addPreConstraint(ctx.pre, method.pre, method.abstLocs);
+    addPostConstraint(ctx.post, method.post, method.abstLocs, method.bindLocs);
 
-    if(ctx.post != null && ctx.post.delta() != null){
-      for (var loc: ctx.post.delta().IDENTIFIER()) {
-        m.bindLocs.add(loc.getText());
-      }
-      constraint = m.post;
-      visit(ctx.post);
-      constraint = null;
-    }
-
-    arg = m.argType;
+    //引数の追加
+    tmpArgTypes = method.argTypes;
     visit(ctx.formalParameters());
-    arg = null;
+    tmpArgTypes = null;
 
     //辞書にメソッド追加
-    c.method.put(id, m);
+    cls.methods.put(id, method);
     return null;
   }
 
