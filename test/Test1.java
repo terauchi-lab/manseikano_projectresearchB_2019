@@ -1,15 +1,15 @@
 class A {
-  /*@ Ref p @*/ A(){}
-  /*@ [p; p->{c:A}] @*/
+  /*@ Ref p_this @*/ A(){}
+  /*@ [p_this->{c:A}] @*/
 }
 
 class B extends A {
   A x;
-  /*@ [pa;] @*/
-  /*@ Ref p @*/ B(/*@ Ref pa @*/ A pa){
+  /*@ [pa->{c:A}] @*/
+  /*@ Ref p_this @*/ B(/*@ Ref pa @*/ A pa){
     x = pa;
   }
-  /*@ [p; p->{c:B, x:Ref pa}] @*/
+  /*@ [p_this->{c:B, x:Ref pa}, pa->{c:A}] @*/
 }
 
 class Test1 {

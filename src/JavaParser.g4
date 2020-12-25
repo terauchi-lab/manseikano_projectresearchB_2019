@@ -541,10 +541,6 @@ creator
     | createdName (arrayCreatorRest | classCreatorRest) LCOMMENT '[' forall=delta* ']' '[' exists=delta* ']' RCOMMENT
     ;
 
-paramLocation
-    : '[' IDENTIFIER? (',' IDENTIFIER)* ']'
-    ;
-
 createdName
     : IDENTIFIER typeArgumentsOrDiamond? ('.' IDENTIFIER typeArgumentsOrDiamond?)*
     | primitiveType
@@ -612,10 +608,10 @@ delta
     ;
 
 constraints
-    : objectType (',' objectType)*
+    : constraint (',' constraint)*
     ;
 
-objectType
+constraint
     : IDENTIFIER '->' '{' IDENTIFIER ':' className=IDENTIFIER (',' param )* '}'
     ;
 
