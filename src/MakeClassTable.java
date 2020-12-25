@@ -66,6 +66,27 @@ public class MakeClassTable extends JavaParserBaseVisitor<IType> {
   }
 
   @Override
+  public IType visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+    String cName = cNameStack.peekFirst();
+    Class cls = clsTable.get(cName);
+    if(cls.fieldType == null){
+      cls.fieldType = new HashMap<>();
+    }
+
+    if(ctx.typeType().classOrInterfaceType() != null){
+      for (var variable : ctx.variableDeclarators().variableDeclarator()) {
+          cls.fieldType.put(variable.getText(), new NullType());
+      }
+    }else{
+      for (var variable : ctx.variableDeclarators().variableDeclarator()) {
+        var type = PrimitiveType.getType(ctx.typeType().primitiveType().getText());
+        cls.fieldType.put(variable.getText(), type);
+      }
+    }
+    return super.visitFieldDeclaration(ctx);
+  }
+
+  @Override
   public IType visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
     String cName = cNameStack.peekFirst();
     Class cls = clsTable.get(cName);
