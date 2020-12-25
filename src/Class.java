@@ -1,4 +1,5 @@
-import java.util.*;
+import java.util.HashMap;
+
 class Class {
   //Super Class Name
   public String sClassName;

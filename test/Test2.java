@@ -1,24 +1,24 @@
 class A {
-  /*@ Ref p @*/ A(){}
-  /*@ [p; p->{c:A}] @*/
+  /*@ Ref p_this @*/ A(){}
+  /*@ [p_this->{c:A}] @*/
 }
 
 class B extends A {
   A x;
 
-  /*@ Ref p @*/ B(){}
-  /*@ [p; p->{c:B, x:NULL}] @*/
+  /*@ Ref p_this @*/ B(){}
+  /*@ [p_this->{c:B, x:NULL}] @*/
 
-  /*@ [pt; pt->{c:B, x:NULL}] @*/
-  /*@ Ref pt@*/ A m(){
+  /*@ [p_this->{c:B, x:NULL}] @*/
+  /*@ Ref p_this @*/ A m(){
     return this.x = new B()/*@[][p]@*/;
   }
-  /*@ [p; pt->{c:B,x:Ref p}, p->{c:B, x:NULL}] @*/
+  /*@ [p_this->{c:B,x:Ref p}, p->{c:B, x:NULL}] @*/
 }
 
 class C extends A{
-  /*@ Ref p @*/ C(){}
-  /*@ [p; p->{c:C}] @*/
+  /*@ Ref p_this @*/ C(){}
+  /*@ [p_this->{c:C}] @*/
 }
 
 class Test2 {
