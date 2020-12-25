@@ -29,6 +29,39 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
     }
   }
 
+  //ユーザの注釈から位置のリストを生成
+  ArrayList<String> createLocList(JavaParser.DeltaContext ctx){
+    var list = new ArrayList<String>();
+    if (ctx != null) {
+      for (var loc : ctx.IDENTIFIER()) {
+        list.add(loc.getText());
+      }
+    }
+    return list;
+  }
+
+  //コンストレイント更新(update(postC,substitutedC'[userLocs/abstLocs]))
+  void updateConstraint(HashMap<String, ObjectType> postC, ArrayList<String> userLocs, ArrayList<String> abstLocs,
+                        ArrayList<String> userBindLocs, ArrayList<String> bindLocs){
+    for (String loc : postC.keySet()) {
+      var objType = new ObjectType();
+
+      //オブジェクトのクラスタイプを記録
+      objType.className = postC.get(loc).className;
+
+      //ユーザが渡した位置で具体化
+      var substitutedC = Constraint.substitute(postC, userLocs, abstLocs);
+
+      //ユーザが渡した位置でunpack
+      var unpackedC = Constraint.substitute(substitutedC, userBindLocs, bindLocs);
+
+      //位置が重なる制約はC'でupdate
+      for (var point: unpackedC.keySet()) {
+        tmpConstraint.put(point, unpackedC.get(point));
+      }
+    }
+  }
+
   @Override
   public IType visitBlock(JavaParser.BlockContext ctx) {
     //ブロックに入ったら型環境をスタックに追加
@@ -170,12 +203,7 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       var cons = Data.clsTable.get(clsName).cons;
 
       //ユーザーによって与えられた位置を記録
-      var userLocs = new ArrayList<String>();
-      if (creator.forall != null) {
-        for (var loc : creator.forall.IDENTIFIER()) {
-          userLocs.add(loc.getText());
-        }
-      }
+      var userLocs = createLocList(creator.forall);
 
       // 引数が仮引数の型で型付けできるかをチェック
       checkArguments(cons.argTypes, arguments, userLocs, cons.abstLocs);
@@ -187,31 +215,10 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       }
 
       //ユーザーが束縛する位置を記録
-      var userBindLocs = new ArrayList<String>();
-      if (creator.exists != null) {
-        for (var loc : creator.exists.IDENTIFIER()) {
-          userBindLocs.add(loc.getText());
-        }
-      }
+      var userBindLocs = createLocList(creator.exists);
 
       //コンストレイント更新(update(C,C'[abst/real]))
-      for (String loc : cons.post.keySet()) {
-        var objType = new ObjectType();
-
-        //オブジェクトのクラスタイプを記録
-        objType.className = cons.post.get(loc).className;
-
-        //ユーザが渡した位置で具体化
-        var substitutedC = Constraint.substitute(cons.post, userLocs, cons.abstLocs);
-
-        //ユーザが渡した位置でunpack
-        var unpackedC = Constraint.substitute(substitutedC, userBindLocs, cons.bindLocs);
-
-        //位置が重なる制約はC'でupdate
-        for (var point: unpackedC.keySet()) {
-            tmpConstraint.put(point, unpackedC.get(point));
-        }
-      }
+      updateConstraint(cons.post, userLocs, cons.abstLocs, userBindLocs, cons.bindLocs);
 
       return cons.returnType.substitute(userBindLocs, cons.bindLocs);
     }
@@ -250,23 +257,13 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       var method= Data.clsTable.get(objClassName).methods.get(methodName);
 
       //ユーザーによって与えられた位置を記録
-      var userLocs = new ArrayList<String>();
-      if (ctx.methodCall().forall != null) {
-        for (var loc : ctx.methodCall().forall.IDENTIFIER()) {
-          userLocs.add(loc.getText());
-        }
-      }
-
-      //ユーザーが束縛する位置を記録
-      var userBindLocs = new ArrayList<String>();
-      if (ctx.methodCall().exists != null) {
-        for (var loc : ctx.methodCall().exists.IDENTIFIER()) {
-          userBindLocs.add(loc.getText());
-        }
-      }
+      var userLocs = createLocList(ctx.methodCall().forall);
 
       // 引数が仮引数の型で型付けできるかをチェック
       checkArguments(method.argTypes, arguments, userLocs, method.abstLocs);
+
+      //ユーザーが束縛する位置を記録
+      var userBindLocs = createLocList(ctx.methodCall().exists);
 
       //コンストレイントの部分型チェック
       if(!Constraint.isSubConstraint(tmpConstraint, method.pre, userLocs, method.abstLocs)){
@@ -275,18 +272,7 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       }
 
       //コンストレイント更新(update(C,C'[abst/real]))
-      for (String loc : method.post.keySet()) {
-        var objType = new ObjectType();
-
-        //オブジェクトのクラスタイプを記録
-        objType.className = method.post.get(loc).className;
-
-        //ユーザが渡した位置で具体化
-        var substitutedC = Constraint.substitute(method.post, userLocs, method.abstLocs);
-
-        //ユーザが渡した位置でunpack
-        tmpConstraint = Constraint.substitute(substitutedC, userBindLocs, method.bindLocs);
-      }
+      updateConstraint(method.post, userLocs, method.abstLocs, userBindLocs, method.bindLocs);
 
       //返り値型
       return method.returnType.substitute(userLocs, method.abstLocs).substitute(userBindLocs, method.bindLocs);

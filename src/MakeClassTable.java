@@ -81,6 +81,7 @@ public class MakeClassTable extends JavaParserBaseVisitor<IType> {
       cls.cons.returnType = new RefType(loc);
     }
 
+    tmpArgTypes = cls.cons.argTypes;
     visit(ctx.formalParameters());
     tmpArgTypes = null;
     return null;
