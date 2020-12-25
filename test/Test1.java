@@ -7,7 +7,7 @@ class B extends A {
   A x;
   /*@ [pa->{c:A}] @*/
   /*@ Ref p_this @*/ B(/*@ Ref pa @*/ A pa){
-    x = pa;
+    this.x = pa;
   }
   /*@ [p_this->{c:B, x:Ref pa}, pa->{c:A}] @*/
 }

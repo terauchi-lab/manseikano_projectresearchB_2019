@@ -1,4 +1,3 @@
-import java.lang.reflect.Array;
 import java.util.*;
 
 public class TypeCheck extends JavaParserBaseVisitor<IType> {
@@ -122,8 +121,22 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
   @Override
   public IType visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
     String clsName = clsNameStack.peekFirst();
-    var cons = Data.clsTable.get(clsName).cons;
+    var cls = Data.clsTable.get(clsName);
+    var cons = cls.cons;
+
     tmpConstraint = Constraint.clone(cons.pre);
+
+    var objType = new ObjectType();
+    objType.className = clsName;
+
+    //p_thisのフィールドの型を追加
+    if(cls.fieldType != null){
+      for (var field : cls.fieldType.keySet()) {
+        var type = cls.fieldType.get(field);
+        objType.fieldTypes.put(field, type);
+      }
+    }
+    tmpConstraint.put("p_this", objType);
 
     LinkedHashMap<String, IType> newEnv = cons.argTypes;
     typeEnvStack.addFirst(newEnv);
