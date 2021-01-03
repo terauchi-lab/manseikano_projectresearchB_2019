@@ -1,0 +1,15 @@
+/*
+Copyright (c) 2019 Amr Hesham
+Code released under the MIT license
+https://github.com/AmrDeveloper/Astro/blob/master/LICENSE
+*/
+
+.text-area {
+    -fx-font-size: 15;
+    -fx-text-fill: #f8f8f2;
+    -fx-display-caret:true;
+}
+
+.text-area .content {
+    -fx-background-color: #3c3f41;
+}

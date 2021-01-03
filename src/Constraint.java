@@ -93,4 +93,21 @@ public class Constraint {
         }
         return copyC;
     }
+
+    //p1->{...}, p2->{...}形式で返す
+    public static String toString(HashMap<String, ObjectType> c){
+        var str = new ArrayList<String>();
+        for (var loc : c.keySet()) {
+            var objStr = new ArrayList<String>();
+
+            var objectType = c.get(loc);
+            objStr.add("c:"+objectType.className);
+            for (var field : objectType.fieldTypes.keySet()) {
+                objStr.add(field+":"+objectType.fieldTypes.get(field).getTypeName());
+            }
+
+            str.add(loc+"->"+"{"+String.join(",", objStr)+"}");
+        }
+        return String.join(", ", str);
+    }
 }
