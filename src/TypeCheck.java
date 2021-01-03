@@ -77,8 +77,28 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
   @Override public IType visitBlockStatement(JavaParser.BlockStatementContext ctx) {
     String cName = clsNameStack.peekFirst();
 
+    //TODO argsを型環境に持っているかどうかで判断する
     if(cName.contains("Test")){
       visitChildren(ctx);
+      var debug = new DebugInfo();
+      debug.line = ctx.start.getLine();
+      debug.statement = ctx.getText();
+
+      //型環境
+      var str = new ArrayList<String>();
+      for (var typeEnv : typeEnvStack) {
+        for (var field : typeEnv.keySet()) {
+          if(field.equals("args")) continue;
+          str.add(field+":"+typeEnv.get(field).getTypeName());
+        }
+      }
+      debug.typeEnv = String.join(", ", str);
+
+      //制約
+      debug.constraint = Constraint.toString(tmpConstraint);
+
+      Data.mainDebugInfo.add(debug);
+
       return null;
     }else{
       return visitChildren(ctx);
