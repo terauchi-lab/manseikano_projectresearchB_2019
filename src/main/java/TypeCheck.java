@@ -205,7 +205,7 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
     }
 
     //フィールド参照のとき
-    if(ctx.bop != null && ctx.bop.getText().equals(".") && ctx.IDENTIFIER() != null){
+    if(ctx.bop != null && ctx.bop.getText().equals("") && ctx.IDENTIFIER() != null){
       String instance = ctx.getChild(0).getText();
       String field = ctx.IDENTIFIER().getText();
 
@@ -257,7 +257,7 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
     }
 
     //インスタンスメソッド呼び出しのとき
-    if(ctx.methodCall() != null && ctx.bop != null && ctx.bop.getText().equals(".")){
+    if(ctx.methodCall() != null && ctx.bop != null && ctx.bop.getText().equals("")){
       var instance = ctx.expression(0).primary().getText();
       var arguments  = ctx.methodCall().expressionList();
 
@@ -319,7 +319,7 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       IType lType = visit(left);
 
       //フィールドへの代入のとき
-      if(right.bop != null && right.bop.getText().equals(".")){
+      if(right.bop != null && right.bop.getText().equals("")){
 
         String instance = right.getChild(0).getText();
         String location = null;
