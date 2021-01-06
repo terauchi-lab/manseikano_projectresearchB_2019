@@ -1,21 +1,45 @@
-class A {
-  /*@ Ref p_this @*/ A(){}
-  /*@ [p_this->{c:A}] @*/
+class Park {
+  Animal animal;
+
+  /*@ Ref p_this @*/ Park(){
+    this.animal = new Dog()/*@ [][p1] @*/;
+  }
+  /*@ [p_this->{c:A, animal:Ref p1}, p1->{c:Dog}] @*/
 }
 
-class B extends A {
-  A x;
-  /*@ [pa->{c:A}] @*/
-  /*@ Ref p_this @*/ B(/*@ Ref pa @*/ A pa){
-    this.x = pa;
+class Animal {
+  /*@ Ref p_this @*/ Animal(){}
+  /*@ [p_this->{c:Animal}] @*/
+}
+
+class Dog extends Animal {
+  /*@ Ref p_this @*/ Dog(){}
+  /*@ [p_this->{c:Dog}] @*/
+
+  /*@ [p_this->{c:Dog}] @*/
+  boolean bark(){
+    return true;
   }
-  /*@ [p_this->{c:B, x:Ref pa}, pa->{c:A}] @*/
+  /*@ [p_this->{c:Dog}] @*/
+
+}
+
+class Cat extends Animal {
+
+  /*@ Ref p_this @*/ Cat(){}
+  /*@ [p_this->{c:Cat}] @*/
+
+  /*@ [p_this->{c:Cat}] @*/
+  boolean nyan(){
+    return false;
+  }
+  /*@ [p_this->{c:Cat}] @*/
 }
 
 class Test1 {
   public static void main(String[] args){
-    A a = new A()/*@ [][p1] @*/;
-    B b = new B(a)/*@ [p1][p2] @*/;
-    b.x = b;
+    Park park = new Park()/*@ [][p1,p2] @*/;
+    Animal animal = park.animal;
+    assert (animal instanceof Cat);
   }
 }

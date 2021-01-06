@@ -3,8 +3,11 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.antlr.v4.gui.TreeViewer;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
+
+import java.util.Arrays;
 
 public class MainApp extends Application {
 
@@ -12,6 +15,7 @@ public class MainApp extends Application {
         try {
           typeCheck(args[0]);
         } catch (Exception e){
+            e.printStackTrace();
         }
         Data.sourceFile = args[0];
         launch(args);
@@ -24,8 +28,8 @@ public class MainApp extends Application {
         ParseTree tree = parser.compilationUnit();
 
         //GUI表示
-        //TreeViewer viewr = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
-        //viewr.open();
+        //TreeViewer viewer = new TreeViewer(Arrays.asList(parser.getRuleNames()), tree);
+        //viewer.open();
 
         //クラステーブルを生成するvisitor
         MakeClassTable makeClassTable = new MakeClassTable();

@@ -100,7 +100,7 @@ public class MainController {
                           IType returnType, HashMap<String, ObjectType> pre, HashMap<String, ObjectType> post){
         var sb = new StringBuilder();
         sb.append("∀").append(String.join(",", abstLocs))
-          .append("").append(Constraint.toString(pre)).append(";");
+          .append(".").append(Constraint.toString(pre)).append(";");
 
         var str = new ArrayList<String>();
         for (var field : argType.keySet()) {
@@ -110,7 +110,7 @@ public class MainController {
         }
         sb.append(String.join(", ", str));
 
-        sb.append(" => ∃").append(String.join(",", bindLocs)).append("")
+        sb.append(" => ∃").append(String.join(",", bindLocs)).append(".")
           .append(returnType.getTypeName()).append(";")
           .append(Constraint.toString(post)).append("\n");
 
