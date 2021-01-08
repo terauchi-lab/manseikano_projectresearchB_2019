@@ -41,5 +41,6 @@ class Test1 {
     Park park = new Park()/*@ [][p1,p2] @*/;
     Animal animal = park.animal;
     assert (animal instanceof Cat);
+    ((Cat) animal).nyan()/*@ [][] @*/;
   }
 }

@@ -8,9 +8,16 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
   //コンストレイント
   public HashMap<String, ObjectType> tmpConstraint = new HashMap<>();
 
+  boolean typeCheckError = false;
+
   //引数の型チェック
-  void checkArguments(LinkedHashMap<String, IType> formalArgTypes, JavaParser.ExpressionListContext arguments,
-                      ArrayList<String> userLocs, ArrayList<String> abstLocs){
+  boolean isValidArgument(LinkedHashMap<String, IType> formalArgTypes, JavaParser.ExpressionListContext arguments,
+                       ArrayList<String> userLocs, ArrayList<String> abstLocs){
+    //具体化する位置変数の数が要求と異なる場合
+    if(abstLocs.size() != userLocs.size()){
+      return false;
+    }
+
     if (1 < formalArgTypes.size()){
       int argCnt = 0;
       for (var formalArgs : formalArgTypes.keySet()) {
@@ -22,10 +29,12 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
 
         //実引数の型と仮引数の方が一致しない場合
         if (!arg.subType(formalArg.substitute(userLocs, abstLocs))){
-          System.out.println("Invalid argument and location");
+          return false;
         }
       }
     }
+
+    return true;
   }
 
   //ユーザの注釈から位置のリストを生成
@@ -75,11 +84,20 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
   }
 
   @Override public IType visitBlockStatement(JavaParser.BlockStatementContext ctx) {
-    String cName = clsNameStack.peekFirst();
+    if(typeCheckError){ return null; } //前のstatementでエラーしていたらskip
 
-    //TODO argsを型環境に持っているかどうかで判断する
-    if(cName.contains("Test")){
-      visitChildren(ctx);
+    visitChildren(ctx);
+
+    //visitしてエラーだったら
+    if(typeCheckError){
+      Data.errorLine = ctx.start.getLine();
+      return null;
+    }
+
+    String cName = clsNameStack.peekFirst();
+    //main関数の場合
+    if(Data.sourceFile.contains(cName)){
+
       var debug = new DebugInfo();
       debug.line = ctx.start.getLine();
       debug.statement = ctx.getText();
@@ -96,13 +114,10 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
 
       //制約
       debug.constraint = Constraint.toString(tmpConstraint);
-
       Data.mainDebugInfo.add(debug);
-
-      return null;
-    }else{
-      return visitChildren(ctx);
     }
+
+    return null;
   }
 
   @Override
@@ -116,7 +131,8 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       var clsType = tmpConstraint.get(loc).className;
 
       if(!clsType.equals(expr.typeType().getText())){
-        System.out.println("assert failure");
+        Data.error = "assert failure";
+        typeCheckError = true;
       }
       return null;
     }
@@ -239,7 +255,8 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
 
       //objがコンストレイントになかったら
       if(obj == null){
-        System.err.println(location+" is not found");
+        Data.error = location + " wasn't found in constraints";
+        typeCheckError = true;
         return null;
       }
 
@@ -259,16 +276,29 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       var userLocs = createLocList(creator.forall);
 
       // 引数が仮引数の型で型付けできるかをチェック
-      checkArguments(cons.argTypes, arguments, userLocs, cons.abstLocs);
+      if(!isValidArgument(cons.argTypes, arguments, userLocs, cons.abstLocs)){
+        Data.error = "Invalid arguments";
+        typeCheckError = true;
+        return null;
+      };
 
       //コンストレイントの部分型チェック
       if(!Constraint.isSubConstraint(tmpConstraint, cons.pre, userLocs, cons.abstLocs)){
-        System.out.println("Invalid constraint");
+        Data.error = "constraint didn't match the constructor constraint";
+        typeCheckError = true;
         return null;
       }
 
       //ユーザーが束縛する位置を記録
       var userBindLocs = createLocList(creator.exists);
+
+
+      //束縛する位置変数の数が要求と異なる場合
+      if(cons.bindLocs.size() != userBindLocs.size()){
+        Data.error = "Invalid binded location";
+        typeCheckError = true;
+        return null;
+      }
 
       //コンストレイント更新(update(C,C'[abst/real]))
       updateConstraint(cons.post, userLocs, cons.abstLocs, userBindLocs, cons.bindLocs);
@@ -291,14 +321,16 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
 
           //インスタンス変数がRef型じゃなかったら
           if(!(instanceType instanceof RefType)){
-            System.out.println(instance +" should be Ref type");
+            Data.error = instance + " wasn't Ref type";
+            typeCheckError = true;
             return null;
           }
 
           //ポインタが指す先が制約になかったら
           var point = ((RefType) instanceType).getLocation();
           if(!tmpConstraint.containsKey(point)){
-            System.out.println(point+" isn't in a constraint");
+            Data.error = point + " wasn't found in a constraint";
+            typeCheckError = true;
             return null;
           }
           objClassName = tmpConstraint.get(point).className;
@@ -313,14 +345,22 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       var userLocs = createLocList(ctx.methodCall().forall);
 
       // 引数が仮引数の型で型付けできるかをチェック
-      checkArguments(method.argTypes, arguments, userLocs, method.abstLocs);
+      isValidArgument(method.argTypes, arguments, userLocs, method.abstLocs);
 
       //ユーザーが束縛する位置を記録
       var userBindLocs = createLocList(ctx.methodCall().exists);
 
+      //束縛する位置変数の数が要求と異なる場合
+      if(method.abstLocs.size() != userBindLocs.size()){
+        Data.error = "Invalid binded location";
+        typeCheckError = true;
+        return null;
+      }
+
       //コンストレイントの部分型チェック
       if(!Constraint.isSubConstraint(tmpConstraint, method.pre, userLocs, method.abstLocs)){
-        System.out.println("Invalid constraint");
+        Data.error = "constraint didn't match the method constraint";
+        typeCheckError = true;
         return null;
       }
 
@@ -352,7 +392,8 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
 
         //オブジェクトが制約になかったら
         if(tmpConstraint.get(location) == null){
-          System.err.println(location+" is not found");
+          Data.error = location + " wasn't found in a constraint";
+          typeCheckError = true;
           return null;
         }
 

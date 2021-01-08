@@ -45,13 +45,17 @@ public class Constraint {
                                         HashMap<String, ObjectType> c,
                                         ArrayList<String> userLocs,
                                         ArrayList<String> formalLocs){
+        //要求する位置の数が異なる場合
+        if(formalLocs.size() != userLocs.size()){
+            return false;
+        }
+
         var substitutedC = substitute(c, userLocs, formalLocs);
 
         for (var location : substitutedC.keySet()) {
 
             //c[formalLocs/userLocs]にある位置がc_sになかったら
             if(!c_s.containsKey(location)){
-                System.err.println(location+" is not found");
                 return false;
             }
             var subObjectType = c_s.get(location);
@@ -59,7 +63,6 @@ public class Constraint {
 
             //オブジェクトのクラスが部分型関係になっているか
             if(!isSubClass(subObjectType, objectType)){
-                System.err.println(subObjectType.className+" is not subclass of "+ objectType.className);
                 return false;
             }
 
@@ -69,13 +72,11 @@ public class Constraint {
 
                 //そもそもフィールドがない
                 if(subType == null){
-                    System.err.println(field+" is not found");
                     return false;
                 }
 
                 //部分型じゃない
                 if(!subType.subType(objectType.fieldTypes.get(field))){
-                    System.err.println(field+" is not found");
                     return false;
                 }
             }

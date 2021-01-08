@@ -61,9 +61,15 @@ public class MainController {
         //main関数の型付け
         var sb = new StringBuilder();
         for (var debugInfo : Data.mainDebugInfo) {
-            sb.append("Line ").append(debugInfo.line).append(": ").append(debugInfo.statement).append("\n");
+            sb.append("Line ").append(debugInfo.line).append(":").append("\n");
             sb.append("TypingEnvironment: ").append(debugInfo.typeEnv).append("\n");
             sb.append("Constraint: ").append(debugInfo.constraint).append("\n\n");
+        }
+
+        if(Data.error != null){
+            sb.append("Line ").append(Data.errorLine).append(":").append("\n");
+            sb.append("Error: ");
+            sb.append(Data.error);
         }
         resultTextArea.setText(sb.toString());
 
@@ -92,6 +98,8 @@ public class MainController {
             sb.append("\n");
             clsTableSb.append(sb.toString());
         }
+
+
         ctTextArea.setText(clsTableSb.toString());
     }
 
