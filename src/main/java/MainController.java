@@ -62,8 +62,8 @@ public class MainController {
         var sb = new StringBuilder();
         for (var debugInfo : Data.mainDebugInfo) {
             sb.append("Line ").append(debugInfo.line).append(":").append("\n");
-            sb.append("TypingEnvironment: ").append(debugInfo.typeEnv).append("\n");
-            sb.append("Constraint: ").append(debugInfo.constraint).append("\n\n");
+            sb.append("Γ = ").append(debugInfo.typeEnv).append("\n");
+            sb.append("C = ").append(debugInfo.constraint).append("\n\n");
         }
 
         if(Data.error != null){

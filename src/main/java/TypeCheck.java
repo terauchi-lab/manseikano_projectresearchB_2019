@@ -308,7 +308,17 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
 
     //インスタンスメソッド呼び出しのとき
     if(ctx.methodCall() != null && ctx.bop != null && ctx.bop.getText().equals(".")){
-      var instance = ctx.expression(0).primary().getText();
+
+      var primary =ctx.expression(0).primary();
+
+      if(primary.expression() != null) {
+        var exprCtx = primary.expression();
+        while (exprCtx.expression(0) != null) {
+            exprCtx = exprCtx.expression(0);
+        }
+        primary = exprCtx.primary();
+      }
+      var instance = primary.getText();
       var arguments  = ctx.methodCall().expressionList();
 
       IType instanceType;
@@ -351,7 +361,7 @@ public class TypeCheck extends JavaParserBaseVisitor<IType> {
       var userBindLocs = createLocList(ctx.methodCall().exists);
 
       //束縛する位置変数の数が要求と異なる場合
-      if(method.abstLocs.size() != userBindLocs.size()){
+      if(method.bindLocs.size() != userBindLocs.size()){
         Data.error = "Invalid binded location";
         typeCheckError = true;
         return null;
