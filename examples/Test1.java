@@ -2,9 +2,9 @@ class Park {
   Animal animal;
 
   /*@ Ref p_this @*/ Park(){
-    this.animal = new Dog()/*@ [][p1] @*/;
+    this.animal = new Cat()/*@ [][p1] @*/;
   }
-  /*@ [p_this->{c:A, animal:Ref p1}, p1->{c:Dog}] @*/
+  /*@ [p_this->{c:A, animal:Ref p1}, p1->{c:Cat}] @*/
 }
 
 class Animal {
@@ -41,6 +41,6 @@ class Test1 {
     Park park = new Park()/*@ [][p1,p2] @*/;
     Animal animal = park.animal;
     assert (animal instanceof Cat);
-    ((Cat) animal).nyan()/*@ [][] @*/;
+    ((Cat) animal).nyan()/*@ [p2][] @*/;
   }
 }

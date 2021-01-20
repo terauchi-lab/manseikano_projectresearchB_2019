@@ -1,31 +1,46 @@
-class A {
-  /*@ Ref p_this @*/ A(){}
-  /*@ [p_this->{c:A}] @*/
-}
+class Park {
+  Animal animal;
 
-class B extends A {
-  A x;
-
-  /*@ Ref p_this @*/ B(){}
-  /*@ [p_this->{c:B, x:NULL}] @*/
-
-  /*@ [p_this->{c:B, x:NULL}] @*/
-  /*@ Ref p_this @*/ A m(){
-    return this.x = new B()/*@[][p]@*/;
+  /*@ Ref p_this @*/ Park(){
+    this.animal = new Dog()/*@ [][p1] @*/;
   }
-  /*@ [p_this->{c:B,x:Ref p}, p->{c:B, x:NULL}] @*/
+  /*@ [p_this->{c:A, animal:Ref p1}, p1->{c:Dog}] @*/
 }
 
-class C extends A{
-  /*@ Ref p_this @*/ C(){}
-  /*@ [p_this->{c:C}] @*/
+class Animal {
+  /*@ Ref p_this @*/ Animal(){}
+  /*@ [p_this->{c:Animal}] @*/
+}
+
+class Dog extends Animal {
+  /*@ Ref p_this @*/ Dog(){}
+  /*@ [p_this->{c:Dog}] @*/
+
+  /*@ [p_this->{c:Dog}] @*/
+  boolean bark(){
+    return true;
+  }
+  /*@ [p_this->{c:Dog}] @*/
+
+}
+
+class Cat extends Animal {
+
+  /*@ Ref p_this @*/ Cat(){}
+  /*@ [p_this->{c:Cat}] @*/
+
+  /*@ [p_this->{c:Cat}] @*/
+  boolean nyan(){
+    return false;
+  }
+  /*@ [p_this->{c:Cat}] @*/
 }
 
 class Test2 {
   public static void main(String[] args){
-    B b1 = new B()/*@[][p1]@*/;
-    b1.m()/*@[p1][p2]@*/;
-    b1.x = new C()/*@[][p3]@*/;
-    b1.x = new A()/*@[][p4]@*/;
+    Park park = new Park()/*@ [][p1,p2] @*/;
+    Animal animal = park.animal;
+    assert (animal instanceof Cat);
+    ((Cat) animal).nyan()/*@ [p2][] @*/;
   }
 }
