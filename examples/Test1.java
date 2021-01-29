@@ -4,7 +4,7 @@ class Park {
   /*@ Ref p_this @*/ Park(){
     this.animal = new Cat()/*@ [][p1] @*/;
   }
-  /*@ [p_this->{c:A, animal:Ref p1}, p1->{c:Cat}] @*/
+  /*@ [p_this->{c:Park, animal:Ref p1}, p1->{c:Cat}] @*/
 }
 
 class Animal {
