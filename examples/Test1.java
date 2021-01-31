@@ -23,9 +23,7 @@ class Dog extends Animal {
   /*@ [p_this->{c:Dog}] @*/
 
 }
-
 class Cat extends Animal {
-
   /*@ Ref p_this @*/ Cat(){}
   /*@ [p_this->{c:Cat}] @*/
 
