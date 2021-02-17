@@ -6,13 +6,12 @@ https://github.com/AmrDeveloper/Astro/blob/master/LICENSE
 
 .tab-pane .tab-header-area .tab-header-background {
     -fx-opacity: 0;
-    -fx-background-color: #585858;
+    -fx-background-color: #fdf6e3;
 }
 
 .tab-pane{
-
     -fx-tab-min-width:90px;
-    -fx-background-color: #3c3f41;
+    -fx-background-color: #fdf6e3;
 }
 
 .tab{
@@ -21,24 +20,24 @@ https://github.com/AmrDeveloper/Astro/blob/master/LICENSE
 
 .tab-pane .tab
 {
-    -fx-background-color: #3d3e3f;
+    -fx-background-color: #fdf6e3;
 }
 
 .tab-pane .tab:selected
 {
-    -fx-background-color: #585b4f;
+    -fx-background-color: #eee8d5;
 }
 
 .tab .tab-label {
     -fx-alignment: CENTER;
-    -fx-text-fill: #828282;
+    -fx-text-fill: #93a1a1;
     -fx-font-size: 12px;
     -fx-font-weight: bold;
 }
 
 .tab:selected .tab-label {
     -fx-alignment: CENTER;
-    -fx-text-fill: #f8f8f2;
+    -fx-text-fill: #657b83;
 }
 
 .tab-pane:top *.tab-header-area {
