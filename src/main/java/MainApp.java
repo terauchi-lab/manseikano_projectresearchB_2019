@@ -68,8 +68,8 @@ public class MainApp extends Application {
         primaryStage.setTitle("Main");
         primaryStage.setScene(scene);
         primaryStage.setOnCloseRequest(event -> System.exit(0));
+        primaryStage.setOnHidden(e -> MainController.Shutdown());
         primaryStage.show();
-
     }
 }
 
